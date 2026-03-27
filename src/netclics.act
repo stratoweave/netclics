@@ -428,7 +428,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             # Create new client for this attempt
             netconf.Client(
-                auth=auth,
+                pcap=process.ProcessCap(auth),
                 on_connect=on_connect,
                 on_notif=None,
                 address=ip_address,
@@ -638,7 +638,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             # Create the client
             client = router_client.Client(
-                auth=auth,
+                pcap=process.ProcessCap(auth),
                 address=ip_address,
                 username=username,
                 password=password,
