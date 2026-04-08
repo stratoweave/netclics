@@ -17,10 +17,10 @@ run-https TLS_CERT='certs/server.crt' TLS_KEY='certs/server.key' HTTPS_PORT='844
 
 # Build the project
 build:
-    acton build
+    acton build --release=fast
 
 build-ldep:
-    acton build --dep yang=../acton-yang --dep netconf=../netconf --dep netcli=../netcli --dep http_router=../http-router
+    acton build --release=fast --dep yang=../acton-yang --dep netconf=../netconf --dep netcli=../netcli --dep http_router=../http-router
 
 IMAGE_PATH := env_var_or_default("IMAGE_PATH", "ghcr.io/orchestron-orchestrator/")
 # Config file used by `run`/`run-https`.
