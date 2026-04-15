@@ -22,7 +22,7 @@ build:
 build-ldep:
     acton build --release=fast --dep yang=../acton-yang --dep netconf=../netconf --dep netcli=../netcli --dep http_router=../http-router
 
-IMAGE_PATH := env_var_or_default("IMAGE_PATH", "ghcr.io/orchestron-orchestrator/")
+IMAGE_PATH := env_var_or_default("IMAGE_PATH", "ghcr.io/stratoweave/")
 # Config file used by `run`/`run-https`.
 NETCLICS_CONFIG := env_var_or_default("NETCLICS_CONFIG", "config/netclics.json")
 # Base URL used by API/MCP test recipes.

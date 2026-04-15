@@ -2949,3 +2949,5 @@ actor main(env: Env):
         _log.info("NETCLICS started", {"http_port": http_port, "https_port": https_port})
     else:
         _log.info("NETCLICS started", {"http_port": http_port})
+
+        # TODO: stats API, number of requests / client (anon)

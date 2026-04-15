@@ -3,7 +3,7 @@
     {
       "name": "crpd 24.4R1.9-dynamic",
       "platform": "junos",
-      "container_image": "ghcr.io/orchestron-orchestrator/crpd:24.4R1.9",
+      "container_image": "ghcr.io/stratoweave/crpd:24.4R1.9",
       "min_instances": 1,
       "max_instances": 3,
       "username": "clab",
@@ -12,7 +12,7 @@
     {
       "name": "iosxrd 24.1.1-dynamic",
       "platform": "cisco_iosxr",
-      "container_image": "ghcr.io/orchestron-orchestrator/ios-xr/xrd-control-plane:24.1.1",
+      "container_image": "ghcr.io/stratoweave/ios-xr/xrd-control-plane:24.1.1",
       "min_instances": 1,
       "max_instances": 3,
       "username": "clab",
@@ -25,7 +25,7 @@
     {
       "name": "iosxrd 25.3.1-dynamic",
       "platform": "cisco_iosxr",
-      "container_image": "ghcr.io/orchestron-orchestrator/ios-xr/xrd-control-plane:25.3.1",
+      "container_image": "ghcr.io/stratoweave/ios-xr/xrd-control-plane:25.3.1",
       "min_instances": 1,
       "max_instances": 3,
       "username": "clab",
@@ -38,7 +38,7 @@
     {
       "name": "iosxe 17.18.02-dynamic",
       "platform": "cisco_iosxe",
-      "container_image": "ghcr.io/orchestron-orchestrator/vrnetlab/vr-c8000v:17.18.02",
+      "container_image": "ghcr.io/stratoweave/vrnetlab/vr-c8000v:17.18.02",
       "min_instances": 1,
       "max_instances": 3,
       "username": "vrnetlab",
