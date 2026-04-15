@@ -7,19 +7,19 @@ dependencies = {
         hash="N-V-__8AAI2FAAA27_BvAysIDu88hX9mPSgZkbdwcIqDWJje"
     ),
     "netcli": (
-        repo_url="https://github.com/orchestron-orchestrator/netcli.git",
-        url="https://github.com/orchestron-orchestrator/netcli/archive/4221a0be6c0b5178ee2f2fb4e0390099799c04df.zip",
-        hash="N-V-__8AAK3hAQB5PsSfOG8RCJ_anlOYLVXhLoQOXg2DJyU5"
+        repo_url="https://github.com/stratoweave/netcli.git",
+        url="https://github.com/stratoweave/netcli/archive/82c57afb87dec7efa259a485ea6221280c1a30b5.zip",
+        hash="N-V-__8AACDhAQAWOUPe5hLaxV_eA9-FBnWq3ofk0of90l9L"
     ),
     "netconf": (
-        repo_url="https://github.com/orchestron-orchestrator/netconf.git",
-        url="https://github.com/orchestron-orchestrator/netconf/archive/7a9cc03fc5752cc5f73a64905efadb8b4161e6c6.zip",
-        hash="N-V-__8AAAi5AgBtmYeIx9ntJCBcelsCzsQ_OQUYv1wCXY8_"
+        repo_url="https://github.com/stratoweave/netconf.git",
+        url="https://github.com/stratoweave/netconf/archive/cc9c3f26471d1df9ffd606aa4e7a49cd41b2cadb.zip",
+        hash="N-V-__8AAPC4AgAXL041cKnR0ecR2USXi6E7yxWTfvhm5ZDc"
     ),
     "yang": (
-        repo_url="https://github.com/orchestron-orchestrator/acton-yang.git",
-        url="https://github.com/orchestron-orchestrator/acton-yang/archive/4b180ba1e4ab5002a2b33c13ed32a9063fe38bdd.zip",
-        hash="N-V-__8AAM2dIgCgi5GzvkOitGxEonJejvPxOFSVA0t14-vz"
+        repo_url="https://github.com/stratoweave/acton-yang.git",
+        url="https://github.com/stratoweave/acton-yang/archive/8e4ac72e7e7e59442010139940efb0d39257d0de.zip",
+        hash="N-V-__8AAFEAIwA9KkSYSFU0xQdsJ8-tG6rKQ9ZhahEpqGUg"
     )
 }
 zig_dependencies = {}
