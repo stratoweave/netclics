@@ -6,15 +6,15 @@ import json
 import logging
 import net
 import netconf
-import router_client
+import netcli.router_client as router_client
 import time
 import process
-import xml
+import std.xml as xml
 import yang
-import yang.data
-import yang.gdata
-import yang.schema
-import yang.xml
+import yang.data as ydata
+import yang.gdata as ygdata
+import yang.schema as yschema
+import yang.xml as yxml
 import container_manager
 import schema_filter
 import netclics_config
@@ -148,7 +148,7 @@ actor SchemaCompiler(log_handler: logging.Handler, fc: file.FileCap):
     # TODO: abstract cache so that we don't have to thread through FileCap
     var _log = logging.Logger(log_handler)
 
-    def compile(fingerprint: str, yang_src: list[str], cb: proc(str, ?yang.schema.DRoot, ?Exception) -> None):
+    def compile(fingerprint: str, yang_src: list[str], cb: proc(str, ?yschema.DRoot, ?Exception) -> None):
         """Compile YANG sources asynchronously and invoke callback when done"""
         _log.debug("Starting async compilation", {"fingerprint": fingerprint, "source_count": len(yang_src)})
         sw = time.Stopwatch()
@@ -165,11 +165,11 @@ actor SchemaCompiler(log_handler: logging.Handler, fc: file.FileCap):
 actor SchemaRegistry(log_handler: logging.Handler):
     """Coordinates schema fetching and storage across multiple devices"""
     var _log = logging.Logger(log_handler)
-    var store: dict[str, yang.schema.DRoot] = {}  # fingerprint -> compiled schema
-    var callbacks: dict[str, list[action(?yang.schema.DRoot, ?str) -> None]] = {}  # pending callbacks
+    var store: dict[str, yschema.DRoot] = {}  # fingerprint -> compiled schema
+    var callbacks: dict[str, list[action(?yschema.DRoot, ?str) -> None]] = {}  # pending callbacks
     var fetching: set[str] = set()  # fingerprints currently being fetched
 
-    def get_schema(fingerprint: str, cb: action(?yang.schema.DRoot, ?str) -> None) -> bool:
+    def get_schema(fingerprint: str, cb: action(?yschema.DRoot, ?str) -> None) -> bool:
         """Request a schema by fingerprint.
 
         Returns True if the caller should fetch the schema, False if another actor is already fetching.
@@ -201,7 +201,7 @@ actor SchemaRegistry(log_handler: logging.Handler):
         callbacks[fingerprint].append(cb)
         return True
 
-    def get_schema_sync(fingerprint: str) -> (?yang.schema.DRoot, ?str):
+    def get_schema_sync(fingerprint: str) -> (?yschema.DRoot, ?str):
         if fingerprint in store:
             return store[fingerprint], None
         elif fingerprint in callbacks:
@@ -209,7 +209,7 @@ actor SchemaRegistry(log_handler: logging.Handler):
         else:
             return None, "Schema not fetched yet"
 
-    def add_schema(fingerprint: str, schema: yang.schema.DRoot):
+    def add_schema(fingerprint: str, schema: yschema.DRoot):
         """
         Add a compiled schema to the registry and notify all waiting actors.
         """
@@ -356,7 +356,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
         return instance_data
 
-    def get_compiled_schema(module_set_name) -> (?yang.schema.DRoot, ?str):
+    def get_compiled_schema(module_set_name) -> (?yschema.DRoot, ?str):
         fingerprint = compiled_schemas.get(module_set_name)
         if fingerprint is not None:
             return schema_registry.get_schema_sync(fingerprint)
@@ -428,7 +428,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             # Create new client for this attempt
             netconf.Client(
-                pcap=process.ProcessCap(auth),
+                net.TCPConnectCap(net.TCPCap(net.NetCap(auth))),
                 on_connect=on_connect,
                 on_notif=None,
                 address=ip_address,
@@ -490,7 +490,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         """Rollback device configuration to a previous state"""
         _log.info("DeviceInstance.rollback called", {"device": instance_id})
         if platform == "cisco_iosxe":
-            backward_diff = yang.gdata.diff(final_gdata, base_gdata)
+            backward_diff = ygdata.diff(final_gdata, base_gdata)
             if backward_diff is not None:
                 target_config = backward_diff.to_xml()
             else:
@@ -737,7 +737,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
         poll(0)
 
-    def _iosxe_sync_and_get_config(module_set: str, callback: action(?(raw: xml.Node, gdata: yang.gdata.Node), ?Exception) -> None):
+    def _iosxe_sync_and_get_config(module_set: str, callback: action(?(raw: xml.Node, gdata: ygdata.Node), ?Exception) -> None):
         """Full IOS-XE sync workflow: sync-from -> poll is-syncing -> get-config"""
         _log.info("Starting IOS-XE sync and config retrieval")
 
@@ -761,10 +761,10 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         state = "busy"
 
         # Local variables for this conversion only
-        base_gdata: ?yang.gdata.Node = None
-        base_gdata_all: ?yang.gdata.Node = None
+        base_gdata: ?ygdata.Node = None
+        base_gdata_all: ?ygdata.Node = None
         base_xml: ?xml.Node = None
-        latest_gdata_all: ?yang.gdata.Node = None
+        latest_gdata_all: ?ygdata.Node = None
 
         # Variables to hold formatted base config
         base_config_formatted = ""
@@ -773,11 +773,11 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         steps_results: list[(input: str, config: str, diff: str)] = []
 
         # List to store gdata for each step (for rollback and diffs)
-        steps_gdata: list[yang.gdata.Node] = []
+        steps_gdata: list[ygdata.Node] = []
 
 
         # Helper function to format gdata output based on target format
-        def format_gdata_output(gdata: yang.gdata.Node, target_format: str) -> str:
+        def format_gdata_output(gdata: ygdata.Node, target_format: str) -> str:
             """Format parsed gdata to the requested output format"""
             if target_format == "json":
                 return gdata.to_yang_jsonstr()
@@ -791,7 +791,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
                 _log.warning("Unknown target format, using XML", {"target_format": target_format})
                 return gdata.to_xmlstr(pretty=True)
 
-        def on_base_config_retrieved(config_tuple: ?(raw: xml.Node, gdata: yang.gdata.Node), error: ?Exception):
+        def on_base_config_retrieved(config_tuple: ?(raw: xml.Node, gdata: ygdata.Node), error: ?Exception):
             """Step 1: Process the retrieved base configuration"""
             if error is not None:
                 _log.error("Failed to retrieve base configuration", {"error": str(error)})
@@ -805,7 +805,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             if config_tuple is not None:
                 raw_xml: xml.Node = config_tuple.raw
-                parsed_gdata: yang.gdata.Node = config_tuple.gdata
+                parsed_gdata: ygdata.Node = config_tuple.gdata
 
                 _log.info("Base configuration retrieved and parsed successfully")
 
@@ -893,7 +893,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
             else:
                 _get_netconf_config_parsed(request.module_set, lambda config_tuple, error: on_step_config_retrieved(current_step_index, config_tuple, error))
 
-        def on_step_config_retrieved(current_step_index: int, config_tuple: ?(raw: xml.Node, gdata: yang.gdata.Node), error: ?Exception):
+        def on_step_config_retrieved(current_step_index: int, config_tuple: ?(raw: xml.Node, gdata: ygdata.Node), error: ?Exception):
             """Process the configuration after a step"""
             if error is not None:
                 _log.error("Failed to retrieve step configuration", {"step": current_step_index + 1, "error": str(error)})
@@ -902,7 +902,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             if config_tuple is not None:
                 step_raw_xml: xml.Node = config_tuple.raw
-                step_gdata: yang.gdata.Node = config_tuple.gdata
+                step_gdata: ygdata.Node = config_tuple.gdata
 
                 _log.info("Step configuration retrieved", {"step": current_step_index + 1})
 
@@ -978,19 +978,19 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
             # Move to next step
             process_next_step(current_step_index + 1)
 
-        def verify_restored_config(expected_base_gdata: yang.gdata.Node, callback: action(?Exception) -> None):
+        def verify_restored_config(expected_base_gdata: ygdata.Node, callback: action(?Exception) -> None):
             """Verify device configuration matches base after rollback (full module-set)"""
             _log.info("Verifying device configuration matches base state after rollback", {"module_set": ALL_MODULE_SET})
 
-            def on_verify_config_retrieved(config_tuple: ?(raw: xml.Node, gdata: yang.gdata.Node), error: ?Exception):
+            def on_verify_config_retrieved(config_tuple: ?(raw: xml.Node, gdata: ygdata.Node), error: ?Exception):
                 if error is not None:
                     _log.error("Failed to retrieve config for rollback verification", {"error": str(error)})
                     callback(Exception("Failed to verify rollback state: " + str(error)))
                     return
 
                 if config_tuple is not None:
-                    current_gdata: yang.gdata.Node = config_tuple.gdata
-                    diff_result: ?yang.gdata.Node = yang.gdata.diff(expected_base_gdata, current_gdata)
+                    current_gdata: ygdata.Node = config_tuple.gdata
+                    diff_result: ?ygdata.Node = ygdata.diff(expected_base_gdata, current_gdata)
                     if diff_result is not None:
                         diff_preview = diff_result.prsrc()
                         _log.error("Rollback verification failed: device differs from base state", {"diff_preview": diff_preview[:1000]})
@@ -1249,13 +1249,13 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
         _get_or_create_cli_client(on_client_success, on_client_error)
 
-    def _parse_gdata(raw_xml: xml.Node, module_set: str, context: str) -> (gdata: ?yang.gdata.Node, error: ?str):
+    def _parse_gdata(raw_xml: xml.Node, module_set: str, context: str) -> (gdata: ?ygdata.Node, error: ?str):
         """Parse XML into gdata with the specified module-set"""
         compiled_schema, serror = get_compiled_schema(module_set)
         if compiled_schema is not None:
             try:
                 _log.debug("Parsing raw XML with compiled schemas", {"module_set": module_set, "context": context})
-                parsed_gdata = yang.xml.from_xml(compiled_schema, raw_xml, loose=True)
+                parsed_gdata = yxml.from_xml(compiled_schema, raw_xml, loose=True)
                 return (gdata=parsed_gdata, error=None)
             except Exception as e:
                 _log.error("Failed to parse raw XML with compiled schemas", {"module_set": module_set, "context": context, "error": str(e)})
@@ -1264,7 +1264,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         _log.error("No compiled schema for parsing", {"module_set": module_set, "context": context, "error": serror})
         return (gdata=None, error="No compiled schema available")
 
-    def _get_netconf_config_parsed(module_set: str, result_callback: action(?(raw: xml.Node, gdata: yang.gdata.Node), ?Exception) -> None):
+    def _get_netconf_config_parsed(module_set: str, result_callback: action(?(raw: xml.Node, gdata: ygdata.Node), ?Exception) -> None):
         """Get NETCONF config and parse it with schemas
 
         Returns a tuple of (raw_xml, parsed_gdata) to the callback on success, or None with an exception on failure.
@@ -1388,12 +1388,12 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
         _get_or_create_cli_client(on_client_success, on_client_error)
 
-    def _format_adata_with_paths(gdata: yang.gdata.Node, module_set: str, context: str) -> str:
+    def _format_adata_with_paths(gdata: ygdata.Node, module_set: str, context: str) -> str:
         """Format gdata as adata and append touched schema paths."""
         compiled_schema, error = get_compiled_schema(module_set)
         if compiled_schema is not None:
-            adata_output = yang.data.pradata(compiled_schema, gdata, loose=True, self_name="dev")
-            touched_paths = yang.data.prpaths(compiled_schema, gdata)
+            adata_output = ydata.pradata(compiled_schema, gdata, loose=True, self_name="dev")
+            touched_paths = ydata.prpaths(compiled_schema, gdata)
             if len(touched_paths) == 0:
                 return adata_output
 
@@ -1404,11 +1404,11 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
             _log.warning("No compiled schema for {context}, using gdata", {"module_set": module_set, "error": error})
             return gdata.prsrc()
 
-    def _compute_gdata_diff(base_gdata: yang.gdata.Node, final_gdata: yang.gdata.Node, target_format: str, module_set: str) -> str:
+    def _compute_gdata_diff(base_gdata: ygdata.Node, final_gdata: ygdata.Node, target_format: str, module_set: str) -> str:
         """Compute diff between base and final gdata configs"""
         try:
-            # Use yang.gdata.diff for semantic diff
-            diff_result = yang.gdata.diff(base_gdata, final_gdata)
+            # Use gdata diff for semantic diff
+            diff_result = ygdata.diff(base_gdata, final_gdata)
 
             if diff_result is not None:
                 # Convert diff to appropriate format based on target_format
@@ -1700,7 +1700,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
                 _log.info("Device ready for requests, schema initialization continuing in background", {"device": instance_id})
 
             # Callback when schema is ready (either compiled by us or another actor)
-            def on_schema_ready(name: str, fingerprint: str, schema: ?yang.schema.DRoot, error: ?str):
+            def on_schema_ready(name: str, fingerprint: str, schema: ?yschema.DRoot, error: ?str):
                 if _is_inactive():
                     _log.debug("Ignoring schema ready callback for inactive device", {"device": instance_id, "module-set": name, "state": state})
                     return
@@ -1713,7 +1713,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
                     _log.error("Schema not available for module-set", {"module-set": name, "fingerprint": fingerprint, "error": compiled_schemas_errors[name]})
 
             # Callback when we complete compilation (we were the fetcher)
-            def on_compile_done(fingerprint: str, schema: ?yang.schema.DRoot, error: ?Exception):
+            def on_compile_done(fingerprint: str, schema: ?yschema.DRoot, error: ?Exception):
                 if error is not None:
                     _log.error("Failed to compile schemas", {"fingerprint": fingerprint, "error": str(error)})
                     schema_registry.add_schema_error(fingerprint, error)

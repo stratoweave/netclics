@@ -3,23 +3,23 @@ fingerprint = 0x86c6ec1ee3cbaa48
 dependencies = {
     "http_router": (
         repo_url="https://github.com/stratoweave/http-router.git",
-        url="https://github.com/stratoweave/http-router/archive/45dc24a88b0849289b1653abacbd066982548372.zip",
-        hash="N-V-__8AAI2FAAA27_BvAysIDu88hX9mPSgZkbdwcIqDWJje"
+        url="https://github.com/stratoweave/http-router/archive/90c77435274ebcd67381df7fab0f06af88b8584e.zip",
+        hash="N-V-__8AAGSGAACWH4Nfp1321t8R9dtwzAWZZbdypxnA6F2K"
     ),
     "netcli": (
         repo_url="https://github.com/stratoweave/netcli.git",
-        url="https://github.com/stratoweave/netcli/archive/a663ef6ded6c95a8ee8994a070f37abc16cd325b.zip",
-        hash="N-V-__8AACDhAQBgm82lJiEIos-NYIP7cRMaoMTsTg2KxXUd"
+        url="https://github.com/stratoweave/netcli/archive/9e0c8e3bf68857ed2d940f056d6e3df2f9c487c2.zip",
+        hash="N-V-__8AAPkAAgBK26myAgk0mPHRteDOlkUD8k9kfeVfKSdM"
     ),
     "netconf": (
         repo_url="https://github.com/stratoweave/netconf.git",
-        url="https://github.com/stratoweave/netconf/archive/cc9c3f26471d1df9ffd606aa4e7a49cd41b2cadb.zip",
-        hash="N-V-__8AAPC4AgAXL041cKnR0ecR2USXi6E7yxWTfvhm5ZDc"
+        url="https://github.com/stratoweave/netconf/archive/30a9ef3ca755322d1d989a9051e9ee029fc0af26.zip",
+        hash="N-V-__8AAOq2AgBlsAoVyGe19V3mas2PvPkozHDsJSTp8xbw"
     ),
     "yang": (
         repo_url="https://github.com/stratoweave/acton-yang.git",
-        url="https://github.com/stratoweave/acton-yang/archive/95ce4ae083a3920a98f6f984c91bd3d09f556231.zip",
-        hash="N-V-__8AADv1IgCnOSwFc0GTl0aUtxRAgC-Cs46To6-U5G-k"
+        url="https://github.com/stratoweave/acton-yang/archive/81fb1b89e0ea212b0ff15c3009a4c2d7a1750dc7.zip",
+        hash="N-V-__8AAJmuJQBbpGy-JVleqKcpIp7M3Gpo4DolxhQuzuhI"
     )
 }
 zig_dependencies = {}
