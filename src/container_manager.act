@@ -8,7 +8,8 @@ def _extract_port(ports: dict[str, ?value], port_key: str) -> u64:
     if isinstance(mapped, list) and len(mapped) > 0:
         first = mapped[0]
         if isinstance(first, dict):
-            host_port = first.get("HostPort")
+            port_mapping: dict[str, ?value] = first
+            host_port = port_mapping.get("HostPort")
             if isinstance(host_port, int):
                 return u64(host_port)
             if isinstance(host_port, str):
@@ -24,9 +25,11 @@ def _extract_primary_ip(network_settings: dict[str, ?value]) -> str:
 
     networks = network_settings.get("Networks")
     if isinstance(networks, dict):
-        for _, network_data in networks.items():
+        networks_obj: dict[str, ?value] = networks
+        for _, network_data in networks_obj.items():
             if isinstance(network_data, dict):
-                ip = network_data.get("IPAddress")
+                network_data_obj: dict[str, ?value] = network_data
+                ip = network_data_obj.get("IPAddress")
                 if isinstance(ip, str) and ip != "":
                     return ip
     return ""
@@ -39,24 +42,28 @@ def _parse_docker_inspect_entry(first: dict[str, ?value]) -> (ip: str, netconf_p
 
     state_data = first.get("State")
     if isinstance(state_data, dict):
-        status = state_data.get("Status")
+        state_obj: dict[str, ?value] = state_data
+        status = state_obj.get("Status")
         if isinstance(status, str) and status != "":
             state = status
 
-        health_data = state_data.get("Health")
+        health_data = state_obj.get("Health")
         if isinstance(health_data, dict):
-            health_status = health_data.get("Status")
+            health_obj: dict[str, ?value] = health_data
+            health_status = health_obj.get("Status")
             if isinstance(health_status, str) and health_status != "":
                 health = health_status
 
     network_settings = first.get("NetworkSettings")
     if isinstance(network_settings, dict):
-        ip = _extract_primary_ip(network_settings)
+        network_settings_obj: dict[str, ?value] = network_settings
+        ip = _extract_primary_ip(network_settings_obj)
 
-        ports = network_settings.get("Ports")
+        ports = network_settings_obj.get("Ports")
         if isinstance(ports, dict):
-            netconf_port = _extract_port(ports, "830/tcp")
-            ssh_port = _extract_port(ports, "22/tcp")
+            ports_obj: dict[str, ?value] = ports
+            netconf_port = _extract_port(ports_obj, "830/tcp")
+            ssh_port = _extract_port(ports_obj, "22/tcp")
             return (ip=ip, netconf_port=netconf_port, ssh_port=ssh_port, state=state, health=health)
 
         raise ValueError("docker inspect output missing NetworkSettings.Ports")
@@ -71,7 +78,8 @@ def parse_docker_inspect(inspect_output: str) -> (ip: str, netconf_port: u64, ss
 
     first = decoded[0]
     if isinstance(first, dict):
-        return _parse_docker_inspect_entry(first)
+        first_obj: dict[str, ?value] = first
+        return _parse_docker_inspect_entry(first_obj)
 
     raise ValueError("docker inspect output list must contain objects")
 
