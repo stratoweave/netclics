@@ -13,13 +13,13 @@ dependencies = {
     ),
     "stratoweave": (
         repo_url="https://github.com/stratoweave/stratoweave",
-        url="https://github.com/stratoweave/stratoweave/archive/5bfe8260b63eb9a758b87232c53ceb61afbcb003.zip",
-        hash="N-V-__8AAEKzPADXQxamWZ4j-fs6GW50DrC_0UHZsQv_18KN"
+        url="https://github.com/stratoweave/stratoweave/archive/394b59dd938864c8a37e01319e6a1ec38fef48e6.zip",
+        hash="N-V-__8AAA8RZwA2qSb9OQZIdm3gTeB0La6HRuSImhLJ-CIs"
     ),
     "yang": (
         repo_url="https://github.com/stratoweave/acton-yang.git",
-        url="https://github.com/stratoweave/acton-yang/archive/d8d20ea812c7d75843dc44aa05ad97225df70df8.zip",
-        hash="N-V-__8AABj8JgD2jjfBCV3uHrzeIxH6lg9eMMK6yk372ykG"
+        url="https://github.com/stratoweave/acton-yang/archive/20c744c934dd7d76d501aec0b4d1cf2582a87476.zip",
+        hash="N-V-__8AAGDKJwBBv9yrhaAupRZabnJIMPIuB8MoKTPlARfR"
     )
 }
 zig_dependencies = {}
