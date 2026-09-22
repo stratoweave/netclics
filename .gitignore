@@ -1,7 +1,13 @@
 .build
 build.zig*
+zig-pkg/
 .acton.lock
 .actonc.lock
+.acton.compile.lock
 out
 .vscode/
 router-licenses
+
+webui/node_modules/
+webui/.svelte-kit/
+webui/build/

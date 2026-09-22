@@ -2,9 +2,7 @@ name = "netclics"
 fingerprint = 0x86c6ec1ee3cbaa48
 dependencies = {
     "http_router": (
-        repo_url="https://github.com/stratoweave/http-router.git",
-        url="https://github.com/stratoweave/http-router/archive/90c77435274ebcd67381df7fab0f06af88b8584e.zip",
-        hash="N-V-__8AAGSGAACWH4Nfp1321t8R9dtwzAWZZbdypxnA6F2K"
+        follows="stratoweave.http_router"
     ),
     "netcli": (
         repo_url="https://github.com/stratoweave/netcli.git",
@@ -17,9 +15,7 @@ dependencies = {
         hash="N-V-__8AAFSDggC77JKAgQLcL7PXmRgBd0unBCmlHU37QwdO"
     ),
     "yang": (
-        repo_url="https://github.com/stratoweave/acton-yang.git",
-        url="https://github.com/stratoweave/acton-yang/archive/7e0fadf0fab3815fdd94284971abd86d75401fca.zip",
-        hash="N-V-__8AAA5HKQBAj0-JXnx4dew_j8twnjetQAjMpigPxgnl"
+        follows="stratoweave.yang"
     )
 }
 zig_dependencies = {}
