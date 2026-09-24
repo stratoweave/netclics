@@ -13,7 +13,7 @@ run:
 # Example:
 #   just run-https TLS_CERT=./certs/server.crt TLS_KEY=./certs/server.key HTTPS_PORT=8443
 run-https TLS_CERT='certs/server.crt' TLS_KEY='certs/server.key' HTTPS_PORT='8443' HTTP_PORT='8080':
-    out/bin/netclics --config {{NETCLICS_CONFIG}} --port {{HTTP_PORT}} --https-port {{HTTPS_PORT}} --tls-cert {{TLS_CERT}} --tls-key {{TLS_KEY}}
+    out/bin/netclics --config {{NETCLICS_CONFIG}} --http-port {{HTTP_PORT}} --https-port {{HTTPS_PORT}} --tls-cert {{TLS_CERT}} --tls-key {{TLS_KEY}}
 
 # Build the project
 build:
@@ -763,3 +763,12 @@ test-multi-step-all: test-multi-step test-multi-step-iosxe test-multi-step-iosxr
 # Clean up build artifacts
 clean:
     rm -rf out/ .acton.lock *.log
+
+# Rebuild the static SPA and its committed embedded-assets module.
+gen-webui:
+    rm -rf webui/build
+    cd webui && bun install --frozen-lockfile && bun run check && bun run build && bun scripts/gen-embedded-assets.mjs
+
+# Vite proxies /api and /mcp to STRATOWEAVE_API_ORIGIN (default :8080).
+dev-webui:
+    cd webui && bun run dev

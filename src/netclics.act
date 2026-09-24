@@ -19,6 +19,8 @@ import container_manager
 import schema_filter
 import netclics_config
 import static_files
+import stratoweave.static_assets as swstatic
+import webui_assets
 
 
 # Constant for the wildcard (all modules) default module-set
@@ -2811,9 +2813,13 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
     router.route("/api/v1", _install_api_routes)
     router.post("/mcp", _handle_mcp)
 
-    # Static files stay under an explicit prefix; there is no catch-all fallback.
+    # Explicit static mounts take precedence over embedded UI assets.
     if static_file_server is not None:
         router.route(static_mount_prefix, _install_static_routes)
+
+    # Preserve a root static mount: it owns the catch-all route.
+    if static_file_server is None or static_mount_prefix.strip("/") != "":
+        swstatic.install(router, webui_assets.ASSETS)
 
     def _serve_with_router(request, respond):
         router.serve(request, respond)

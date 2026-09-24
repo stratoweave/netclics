@@ -51,3 +51,10 @@ out/bin/netclics --config /path/to/netclics.json
 ```
 
 After editing the config file, save it and it will be automatically reloaded.
+
+## Web interface
+
+Open `http://localhost:8080/` (or your configured HTTPS listener) to convert
+configuration and monitor platforms and instances. The interface is embedded
+in the binary, using the same stack and StratoWeave styling as SORESPO.
+See [webui/README.md](webui/README.md) for frontend development and regeneration.

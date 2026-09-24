@@ -9,6 +9,7 @@ path = [
     "**/Build.act",
     "Justfile",
     "src/**",
+    "webui/**",
     "test/**",
 
 ]
