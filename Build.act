@@ -6,13 +6,13 @@ dependencies = {
     ),
     "netcli": (
         repo_url="https://github.com/stratoweave/netcli.git",
-        url="https://github.com/stratoweave/netcli/archive/137f9a10bc4a06ca41efca9aa25832d6b132852d.zip",
-        hash="N-V-__8AAPkAAgAnqF7k0GUHObNcnrpKruVsEBbmVjmcSpa5"
+        url="https://github.com/stratoweave/netcli/archive/0fe86108a5f57aae24ff3cbc400c7f29386f7617.zip",
+        hash="N-V-__8AANcBAgCYydOj_oQaF35RsddX6AyEcgk775AUDnoF"
     ),
     "stratoweave": (
         repo_url="https://github.com/stratoweave/stratoweave",
-        url="https://github.com/stratoweave/stratoweave/archive/127a8738d395c57acc235d7520127aa707b448f3.zip",
-        hash="N-V-__8AAPQxiACKT2t2_eeGnu0QAFOfaKu1tBmyzxZPLXU3"
+        url="https://github.com/stratoweave/stratoweave/archive/ff072f95350693c2a0b8387812d20477414bf98a.zip",
+        hash="N-V-__8AADQ_iwC7aLJddQrg2STF4V2UMzuTUIEt8bRpLzP6"
     ),
     "yang": (
         follows="stratoweave.yang"
