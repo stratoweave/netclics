@@ -102,7 +102,7 @@ start-static-instances-xrd-25-3-1:
     done
 
 start-static-instances-xe:
-    docker run -td --name xe1 --rm --privileged --publish 44830:830 --publish 44022:22 {{IMAGE_PATH}}vrnetlab/vr-c8000v:17.18.02 --trace
+    docker run -td --name xe1 --rm --privileged --publish 44830:830 --publish 44022:22 {{IMAGE_PATH}}vrnetlab/vr-c8000v:17.18.02 --trace --username netclics-mgmt
 
 # Start all static instances
 start-static-instances: start-static-instances-crpd start-static-instances-xrd start-static-instances-xe

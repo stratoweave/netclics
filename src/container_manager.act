@@ -275,7 +275,8 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
                     "--publish", "830",
                     "--publish", "22",
                     container_image,
-                    "--trace"
+                    "--trace",
+                    "--username", "netclics-mgmt"
                 ]
 
                 _log.info("Starting IOS XE container", {"instance_id": instance_id, "platform": platform_name})
