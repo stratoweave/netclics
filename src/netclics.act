@@ -409,7 +409,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
             if backward_diff is not None:
                 target_config = backward_diff.to_xml()
             else:
-                result_callback()
+                result_callback(None)
                 return
         else:
             # Extract children without <data> wrapper for rollback
