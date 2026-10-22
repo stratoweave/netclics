@@ -1,6 +1,5 @@
 import json
 import logging
-import process
 
 
 def _extract_port(ports: dict[str, ?value], port_key: str) -> u64:
@@ -83,7 +82,7 @@ def parse_docker_inspect(inspect_output: str) -> (ip: str, netconf_port: u64, ss
 
     raise ValueError("docker inspect output list must contain objects")
 
-actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handler):
+actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
     """Manages Docker container lifecycle and metadata"""
 
     logh = logging.Handler("ContainerManager")
@@ -94,7 +93,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
         cmd = ["docker", "rm", "-f", instance_id]
         _log.info("Removing container", {"instance_id": instance_id})
 
-        def on_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+        def on_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
             if exit_code == 0:
                 cb(None)
                 return
@@ -106,13 +105,13 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
 
             cb(Exception("docker rm failed for {instance_id}: {stderr}"))
 
-        def on_error(p: process.Process, error: str):
+        def on_error(p: Process, error: str):
             cb(Exception("Failed to run docker rm for {instance_id}: {error}"))
 
-        process.RunProcess(proc_cap, cmd, on_exit, on_error, None, None)
+        process.run(cmd, on_exit, on_error, None, None)
 
-    def _run_container(run_cmd: list[str], on_started: action() -> None, on_run_failed: action(str) -> None, on_run_error: action(process.Process, str) -> None):
-        def on_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+    def _run_container(run_cmd: list[str], on_started: action() -> None, on_run_failed: action(str) -> None, on_run_error: action(Process, str) -> None):
+        def on_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
             if exit_code == 0:
                 on_started()
                 return
@@ -120,10 +119,10 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
             stderr = err.decode()
             on_run_failed(stderr)
 
-        def on_error(p: process.Process, error: str):
+        def on_error(p: Process, error: str):
             on_run_error(p, error)
 
-        process.RunProcess(proc_cap, run_cmd, on_exit, on_error, None, None)
+        process.run(run_cmd, on_exit, on_error, None, None)
 
     def start_container(platform_name: str, instance_id: str, container_image: str, cb: action(?str, ?Exception) -> None):
         if container_image == "":
@@ -156,17 +155,17 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
                 _log.info("Starting CRPD container", {"instance_id": instance_id, "platform": platform_name})
                 _log.debug("Running command", {"command": " ".join(run_cmd)})
 
-                def on_init_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+                def on_init_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
                     if exit_code == 0:
                         cb(instance_id, None)
                     else:
                         stderr = err.decode()
                         cb(None, Exception("docker exec startup command failed for {instance_id}: {stderr}"))
 
-                def on_init_error(p: process.Process, error: str):
+                def on_init_error(p: Process, error: str):
                     cb(None, Exception("Failed to initialize CRPD startup config for {instance_id}: {error}"))
 
-                def on_run_error(p: process.Process, error: str):
+                def on_run_error(p: Process, error: str):
                     cb(None, Exception("Failed to run docker container for {instance_id}: {error}"))
 
                 def wait_for_crpd_ready(attempt: int):
@@ -176,7 +175,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
 
                     log_cmd = ["docker", "logs", "--tail", "200", instance_id]
 
-                    def on_logs_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+                    def on_logs_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
                         if exit_code != 0:
                             stderr = err.decode()
                             _log.debug("docker logs failed while waiting for cRPD readiness", {"instance_id": instance_id, "attempt": attempt, "stderr": stderr})
@@ -186,17 +185,17 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
                         output = out.decode()
                         if ready_message in output:
                             _log.info("cRPD mgmt daemon ready", {"instance_id": instance_id, "attempt": attempt})
-                            process.RunProcess(proc_cap, init_cmd, on_init_exit, on_init_error, None, None)
+                            process.run(init_cmd, on_init_exit, on_init_error, None, None)
                             return
 
                         _log.debug("cRPD mgmt daemon not ready yet", {"instance_id": instance_id, "attempt": attempt})
                         after ready_poll_interval: wait_for_crpd_ready(attempt + 1)
 
-                    def on_logs_error(p: process.Process, error: str):
+                    def on_logs_error(p: Process, error: str):
                         _log.debug("Failed to read cRPD logs while waiting for readiness", {"instance_id": instance_id, "attempt": attempt, "error": error})
                         after ready_poll_interval: wait_for_crpd_ready(attempt + 1)
 
-                    process.RunProcess(proc_cap, log_cmd, on_logs_exit, on_logs_error, None, None)
+                    process.run(log_cmd, on_logs_exit, on_logs_error, None, None)
 
                 def on_started():
                     _log.debug("Container started; waiting for cRPD mgmt daemon readiness", {"instance_id": instance_id, "message": ready_message})
@@ -241,19 +240,19 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
                         "ip", "link", "add", iface_name, "type", "dummy"
                     ]
 
-                    def on_add_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+                    def on_add_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
                         if exit_code == 0:
                             add_dummy_interface(port + 1)
                         else:
                             stderr = err.decode()
                             cb(None, Exception("docker exec failed while adding {iface_name} on {instance_id}: {stderr}"))
 
-                    def on_add_error(p: process.Process, error: str):
+                    def on_add_error(p: Process, error: str):
                         cb(None, Exception("Failed to add {iface_name} interface on {instance_id}: {error}"))
 
-                    process.RunProcess(proc_cap, add_cmd, on_add_exit, on_add_error, None, None)
+                    process.run(add_cmd, on_add_exit, on_add_error, None, None)
 
-                def on_run_error(p: process.Process, error: str):
+                def on_run_error(p: Process, error: str):
                     cb(None, Exception("Failed to run IOS XRd container for {instance_id}: {error}"))
 
                 def on_started():
@@ -282,7 +281,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
                 _log.info("Starting IOS XE container", {"instance_id": instance_id, "platform": platform_name})
                 _log.debug("Running command", {"command": " ".join(run_cmd)})
 
-                def on_run_error(p: process.Process, error: str):
+                def on_run_error(p: Process, error: str):
                     cb(None, Exception("Failed to run IOS XE container for {instance_id}: {error}"))
 
                 def on_started():
@@ -333,7 +332,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
         cmd = ["docker", "inspect", instance_id]
         _log.debug("Inspecting container", {"instance_id": instance_id, "command": " ".join(cmd)})
 
-        def on_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+        def on_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
             if exit_code != 0:
                 stderr = err.decode()
                 cb(None, Exception("docker inspect failed for {instance_id}: {stderr}"), instance_id)
@@ -345,23 +344,23 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
             except Exception as e:
                 cb(None, e, instance_id)
 
-        def on_error(p: process.Process, error: str):
+        def on_error(p: Process, error: str):
             cb(None, Exception("Failed to run docker inspect for {instance_id}: {error}"), instance_id)
 
-        process.RunProcess(proc_cap, cmd, on_exit, on_error, None, None)
+        process.run(cmd, on_exit, on_error, None, None)
 
     def stop_container(instance_id: str, cb: action(?Exception) -> None):
         cmd = ["docker", "stop", instance_id]
         _log.info("Stopping container", {"instance_id": instance_id})
 
-        def on_exit(p: process.Process, exit_code: int, signal: int, out: bytes, err: bytes):
+        def on_exit(p: Process, exit_code: int, signal: int, out: bytes, err: bytes):
             if exit_code == 0:
                 cb(None)
             else:
                 stderr = err.decode()
                 cb(Exception("docker stop failed for {instance_id}: {stderr}"))
 
-        def on_error(p: process.Process, error: str):
+        def on_error(p: Process, error: str):
             cb(Exception("Failed to run docker stop for {instance_id}: {error}"))
 
-        process.RunProcess(proc_cap, cmd, on_exit, on_error, None, None)
+        process.run(cmd, on_exit, on_error, None, None)

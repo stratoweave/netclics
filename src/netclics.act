@@ -11,7 +11,6 @@ import stratoweave.netconf as netconf
 from stratoweave.adapters.adapter import NotConnectedError
 import netcli.router_client as router_client
 import time
-import process
 import std.xml as xml
 import yang
 import yang.data as ydata
@@ -36,7 +35,7 @@ def expect[T](a: ?T, ctx: str) -> T:
     raise ValueError("expected value (not None) for: {ctx}")
 
 
-actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handler):
+actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
     """Manages Docker containers for network devices"""
 
     # Set up logging
@@ -68,7 +67,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
         _log.debug("Docker command would be", {"command": "docker " + " ".join(docker_args)})
 
         # For now, just log the command we would run
-        # In production, would execute: process.Process(proc_cap, "docker", docker_args, {})
+        # In production, would execute: process.spawn(["docker"] + docker_args, on_stdout, on_stderr, on_exit, on_error)
 
         # Schedule health check
         after 2: _check_container_health(container_name, platform)
@@ -79,7 +78,7 @@ actor ContainerManager(proc_cap: process.ProcessCap, log_handler: logging.Handle
         """Check if container is healthy and get its network info"""
         # In reality, would run: docker inspect <container_name>
         # This would be done with:
-        # inspect_proc = process.Process(proc_cap, "docker", ["inspect", container_name], {})
+        # inspect_proc = process.spawn(["docker", "inspect", container_name], on_stdout, on_stderr, on_exit, on_error)
         # Then parse the JSON output to get:
         # - Container state (running, health status)
         # - IP address from NetworkSettings.IPAddress
@@ -137,7 +136,7 @@ extension _SchemaId (Hashable):
             "".hash(h)
 
 
-actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name: str, platform: str, schema_registry: swdev.SchemaRegistry,
+actor DeviceInstance(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler, platform_name: str, platform: str, schema_registry: swdev.SchemaRegistry,
                      instance_id: str, ip_address: str,
                      netconf_port: int, ssh_port: int, instance_spec: netclics_config.InstanceSpec,
                      instance_type: str = "static",
@@ -553,7 +552,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
             # Create the client
             client = router_client.Client(
-                pcap=process.ProcessCap(auth),
+                process=process,
                 address=ip_address,
                 username=username,
                 password=password,
@@ -1647,7 +1646,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         create_netconf_client_with_retry(username, password, on_connect_success, on_connect_failure, on_error=on_connect_error)
 
 
-actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, log_handler: logging.Handler):
+actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, process: EnvProcess, log_handler: logging.Handler):
     """Manages device lifecycle and state transitions"""
     var config_state = config
     var instances = []  # DeviceInstance actors
@@ -1747,6 +1746,7 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
         for spec in platform.instances:
             device = DeviceInstance(
                 auth=auth,
+                process=process,
                 log_handler=log_handler,
                 platform_name=platform_name_value,
                 platform=platform.platform,
@@ -1847,6 +1847,7 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
 
                 device = DeviceInstance(
                     auth=auth,
+                    process=process,
                     log_handler=log_handler,
                     platform_name=platform.name,
                     platform=platform.platform,
@@ -2069,7 +2070,7 @@ class ConvertRequest(object):
         else:
             raise ValueError("input must be a non-empty list of strings")
 
-actor Director(auth: WorldCap, proc_cap: process.ProcessCap, log_handler: logging.Handler):
+actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler):
     var device_manager: ?DeviceManager = None
     logh = logging.Handler("Director")
     logh.set_handler(log_handler)
@@ -2077,8 +2078,8 @@ actor Director(auth: WorldCap, proc_cap: process.ProcessCap, log_handler: loggin
 
     def set_config(conf: netclics_config.SystemConfig, cb: action(?Exception) -> None):
         if device_manager is None:
-            container_mgr = container_manager.ContainerManager(proc_cap, log_handler)
-            device_manager = DeviceManager(conf, container_mgr, auth, log_handler)
+            container_mgr = container_manager.ContainerManager(process, log_handler)
+            device_manager = DeviceManager(conf, container_mgr, auth, process, log_handler)
             _log.info("Director initialized")
         if device_manager is not None:
             device_manager.apply_config(conf, cb)
@@ -2780,7 +2781,6 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
 
 actor main(env: Env):
     listen_cap = net.TCPListenCap(net.TCPCap(net.NetCap(env.cap)))
-    proc_cap = process.ProcessCap(env.cap)
 
     def _parse_args():
         p = argparse.Parser()
@@ -2857,7 +2857,7 @@ actor main(env: Env):
 
     _log.info("Configuration file watcher will bootstrap and reload config", {"config_path": config_path})
 
-    director = Director(env.cap, proc_cap, log_handler)
+    director = Director(env.cap, env.process, log_handler)
     config_change_watcher = netclics_config.ConfigChangeWatcher(read_cap, config_path, director.set_config, log_handler)
     webs = WebServ(listen_cap, http_port if http_port > 0 else None, director, log_handler, config_path, read_cap, static_file_server, static_prefix, https_port if https_port > 0 else None, tls_cert_pem, tls_key_pem)
     if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
