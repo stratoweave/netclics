@@ -1658,7 +1658,7 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
     var max_recovery_attempts = 3
     var recovery_base_delay_seconds = 5
     var recovery_max_delay_seconds = 60
-    var schema_registry = swdev.SchemaRegistry(file.FileCap(auth))
+    var schema_registry = swdev.SchemaRegistry()
 
     # Set up logging
     logh = logging.Handler("DeviceManager")
