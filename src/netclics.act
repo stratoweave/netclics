@@ -136,7 +136,7 @@ extension _SchemaId (Hashable):
             "".hash(h)
 
 
-actor DeviceInstance(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler, platform_name: str, platform: str, schema_registry: swdev.SchemaRegistry,
+actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name: str, platform: str, schema_registry: swdev.SchemaRegistry,
                      instance_id: str, ip_address: str,
                      netconf_port: int, ssh_port: int, instance_spec: netclics_config.InstanceSpec,
                      instance_type: str = "static",
@@ -550,33 +550,35 @@ actor DeviceInstance(auth: WorldCap, process: EnvProcess, log_handler: logging.H
                 on_error(Exception("Unrecognized device platform: {device_platform}"))
                 return
 
-            # Create the client
-            client = router_client.Client(
-                process=process,
+            def on_connect(client: router_client.Client, error: ?Exception):
+                if error is not None:
+                    ccc = conversion_cli_client
+                    if ccc is not None and ccc is client:
+                        # Lost after it was ready, so the next operation connects again
+                        _log.warning("CLI client connection lost", {"error": str(error)})
+                        conversion_cli_client = None
+                    else:
+                        _log.error("CLI client failed to connect", {"error": str(error)})
+                        on_error(error)
+                elif _is_inactive():
+                    client.disconnect()
+                    _log.debug("Closing CLI client created for inactive device", {"state": state})
+                else:
+                    _log.info("CLI client created and stored for reuse")
+                    conversion_cli_client = client
+                    on_success(client)
+
+            router_client.Client(
+                net.TCPConnectCap(net.TCPCap(net.NetCap(auth))),
                 address=ip_address,
                 username=username,
                 password=password,
+                on_connect=on_connect,
                 port=ssh_port,
                 device_type=device_type,
+                skip_host_key_check=True,
                 log_handler=log_handler
             )
-
-            conversion_cli_client = client
-
-            # Wait for connection
-            def try_connect(attempt: int):
-                if client.is_connected():
-                    _log.info("CLI client created and stored for reuse")
-                    on_success(client)
-                elif attempt < 10:  # Retry for up to 5 seconds
-                    _log.debug("CLI client not ready, retrying", {"attempt": attempt + 1})
-                    after 0.5: try_connect(attempt + 1)
-                else:
-                    _log.error("CLI client failed to connect")
-                    conversion_cli_client = None  # Clear the failed client
-                    on_error(Exception("CLI client connection timeout"))
-
-            after 0.1: try_connect(0)
 
     # IOS-XE cisco-ia namespace for sync operations
     CISCO_IA_NS = "http://cisco.com/yang/cisco-ia"
@@ -1646,7 +1648,7 @@ actor DeviceInstance(auth: WorldCap, process: EnvProcess, log_handler: logging.H
         create_netconf_client_with_retry(username, password, on_connect_success, on_connect_failure, on_error=on_connect_error)
 
 
-actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, process: EnvProcess, log_handler: logging.Handler):
+actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, log_handler: logging.Handler):
     """Manages device lifecycle and state transitions"""
     var config_state = config
     var instances = []  # DeviceInstance actors
@@ -1746,7 +1748,6 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
         for spec in platform.instances:
             device = DeviceInstance(
                 auth=auth,
-                process=process,
                 log_handler=log_handler,
                 platform_name=platform_name_value,
                 platform=platform.platform,
@@ -1847,7 +1848,6 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
 
                 device = DeviceInstance(
                     auth=auth,
-                    process=process,
                     log_handler=log_handler,
                     platform_name=platform.name,
                     platform=platform.platform,
@@ -2079,7 +2079,7 @@ actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler
     def set_config(conf: netclics_config.SystemConfig, cb: action(?Exception) -> None):
         if device_manager is None:
             container_mgr = container_manager.ContainerManager(process, log_handler)
-            device_manager = DeviceManager(conf, container_mgr, auth, process, log_handler)
+            device_manager = DeviceManager(conf, container_mgr, auth, log_handler)
             _log.info("Director initialized")
         if device_manager is not None:
             device_manager.apply_config(conf, cb)
