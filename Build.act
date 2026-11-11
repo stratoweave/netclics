@@ -11,8 +11,8 @@ dependencies = {
     ),
     "stratoweave": (
         repo_url="https://github.com/stratoweave/stratoweave",
-        url="https://github.com/stratoweave/stratoweave/archive/b88760a8192eac0688a6074bbc4dda4209f3021d.zip",
-        hash="N-V-__8AALQCoQAwqQu9PvuKXXhX5WsmxXoFCBt6MDmv7npe"
+        url="https://github.com/stratoweave/stratoweave/archive/aba0ca49ecabbc209d0b0792686ed2690ebabf5d.zip",
+        hash="N-V-__8AAIuD0gAtlNh_-3RmVoF_O_L6oZnlkgYJyCT0-Qmr"
     ),
     "yang": (
         follows="stratoweave.yang"
