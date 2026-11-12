@@ -1,7 +1,11 @@
 # netclics - NETCONF <> CLI Conversion System
 [![REUSE Compliance Check](https://github.com/stratoweave/netclics/actions/workflows/reuse-compliance.yml/badge.svg)](https://github.com/stratoweave/netclics/actions/workflows/reuse-compliance.yml)
 
-NETCLICS converts CLI configuration to NETCONF XML / RESTCONF JSON and vice versa. This is performed by round-tripping the configuration through virtual devices, like crpd (containerized JUNOS) or XRd (containerized IOS XR).
+NETCLICS helps you turn familiar network CLI configuration into the structured data your automation needs. Choose a device platform, paste a CLI snippet, and convert it to NETCONF XML, RESTCONF JSON, or Acton code for StratoWeave transforms. You can also start with NETCONF XML and convert it back to CLI, making it easier to see how device commands map to YANG-based configuration.
+
+Use the web interface to explore a single change or build a sequence of configuration steps. For each step, inspect either the changes or the full resulting configuration, then copy or download the output for use in your own tools. NETCLICS applies your input to virtual devices such as Juniper cRPD and Cisco XRd, so the conversion reflects how the device interprets the configuration.
+
+Try the hosted version at [netclics.stratoweave.org](https://netclics.stratoweave.org) directly in your browser, or build and run your own NETCLICS instance on your own infrastructure.
 
 ## Endpoints
 
