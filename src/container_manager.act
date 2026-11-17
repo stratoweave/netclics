@@ -86,7 +86,6 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
     """Manages Docker container lifecycle and metadata"""
 
     logh = logging.Handler("ContainerManager")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     def _remove_container(instance_id: str, cb: action(?Exception) -> None):
@@ -364,3 +363,8 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
             cb(Exception("Failed to run docker stop for {instance_id}: {error}"))
 
         process.run(cmd, on_exit, on_error, None, None)
+
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+    __startup__()
