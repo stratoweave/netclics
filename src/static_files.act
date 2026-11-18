@@ -39,8 +39,8 @@ def _guess_content_type(path: str) -> str:
     return "application/octet-stream"
 
 
-def _text_response(status_code: int, body: str) -> (int, dict[str, str], str):
-    return (status_code, {"Content-Type": "text/plain; charset=utf-8"}, body)
+def _text_response(status_code: int, body: str) -> (int, dict[str, str], bytes):
+    return (status_code, {"Content-Type": "text/plain; charset=utf-8"}, body.encode())
 
 
 def _resolve_target_path(fs: file.FS, root_dir: str, candidate_path: str) -> (int, ?str):
@@ -91,7 +91,7 @@ actor StaticFileServer(file_cap: file.FileCap, read_cap: file.ReadFileCap, confi
     def get_root_dir() -> str:
         return root_dir
 
-    def maybe_serve(request_method: str, request_path: str) -> ?(int, dict[str, str], str):
+    def maybe_serve(request_method: str, request_path: str) -> ?(int, dict[str, str], bytes):
         if request_method != "GET":
             return None
 
@@ -126,8 +126,4 @@ actor StaticFileServer(file_cap: file.FileCap, read_cap: file.ReadFileCap, confi
             except Exception:
                 return _text_response(500, "Internal server error")
 
-            try:
-                decoded_body = raw_data.decode()
-                return (200, {"Content-Type": _guess_content_type(target_path)}, decoded_body)
-            except Exception:
-                return _text_response(415, "Unsupported media type")
+            return (200, {"Content-Type": _guess_content_type(target_path)}, raw_data)

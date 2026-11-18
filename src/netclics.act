@@ -2301,20 +2301,20 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
 
     # Helper Functions for Response Handling
 
-    def _send_success_response(request_id: ?value, result: ?value, respond: proc(int, dict[str, str], str) -> None, context: str):
+    def _send_success_response(request_id: ?value, result: ?value, respond: proc(int, dict[str, str], bytes) -> None, context: str):
         """Send a successful MCP response with logging"""
         response = MCPResponse(request_id, result, None)
         response_json = json.encode(response.to_dict())
         _log.debug("MCP {context} response", {"context": context, "response": response_json})
-        respond(200, {"Content-Type": "application/json"}, response_json)
+        respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
-    def _send_error_response(request_id: ?value, error_code: int, error_msg: str, respond: proc(int, dict[str, str], str) -> None, context: str):
+    def _send_error_response(request_id: ?value, error_code: int, error_msg: str, respond: proc(int, dict[str, str], bytes) -> None, context: str):
         """Send an error MCP response with logging"""
         error = MCPError(error_code, error_msg)
         response = MCPResponse(request_id, None, error)
         response_json = json.encode(response.to_dict())
         _log.debug("MCP {context} error response", {"context": context, "response": response_json})
-        respond(200, {"Content-Type": "application/json"}, response_json)
+        respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
     def _format_text_content(text: str) -> dict[str, ?value]:
         """Format text as MCP content object"""
@@ -2334,7 +2334,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             return val
         return None
 
-    def handle_initialize(request, respond: proc(int, dict[str, str], str) -> None):
+    def handle_initialize(request, respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP initialize request"""
         try:
             body_str = request.body.decode()
@@ -2371,7 +2371,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP initialize error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "initialize")
 
-    def handle_tools_list(request, respond: proc(int, dict[str, str], str) -> None):
+    def handle_tools_list(request, respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP tools/list request"""
         try:
             body_str = request.body.decode()
@@ -2418,7 +2418,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP tools/list error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "tools/list")
 
-    def handle_tools_call(request, respond: proc(int, dict[str, str], str) -> None):
+    def handle_tools_call(request, respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP tools/call request"""
         try:
             body_str = request.body.decode()
@@ -2447,7 +2447,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP tools/call error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "tools/call")
 
-    def _handle_convert_config(request_id: ?value, args: dict[str, ?value], respond: proc(int, dict[str, str], str) -> None):
+    def _handle_convert_config(request_id: ?value, args: dict[str, ?value], respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP convert_config tool call"""
 
         try:
@@ -2516,7 +2516,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "convert_config")
 
-    def _handle_list_platforms(request_id: ?value, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_list_platforms(request_id: ?value, respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP list_platforms tool call"""
         _log.debug("MCP list_platforms called")
         try:
@@ -2545,7 +2545,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "list_platforms")
 
-    def _handle_list_instances(request_id: ?value, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_list_instances(request_id: ?value, respond: proc(int, dict[str, str], bytes) -> None):
         """Handle MCP list_instances tool call"""
         _log.debug("MCP list_instances called")
         try:
@@ -2605,7 +2605,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
     # Create MCP server instance
     mcp = MCPServer(director.convert, director.get_platforms, director.get_instances, log_handler)
 
-    def _handle_convert(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_convert(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         _log.info("Processing conversion request")
         try:
             body_str = ctx.request.body.decode()
@@ -2638,31 +2638,31 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                     }
                 response_str = json.encode(response)
                 _log.debug("Sending HTTP response", {"response_length": len(response_str)})
-                respond(200, {"Content-Type": "application/json"}, response_str)
+                respond(200, {"Content-Type": "application/json"}, response_str.encode())
 
             director.convert(convert_req, on_conversion_done)
         except Exception as e:
             error_dict = {"success": False, "error": str(e)}
             error_str = json.encode(error_dict)
-            respond(400, {"Content-Type": "application/json"}, error_str)
+            respond(400, {"Content-Type": "application/json"}, error_str.encode())
 
-    def _handle_instances(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_instances(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         instances_data = director.get_instances()
         response = {
             "instances": instances_data,
             "total": len(instances_data)
         }
-        respond(200, {"Content-Type": "application/json"}, json.encode(response))
+        respond(200, {"Content-Type": "application/json"}, json.encode(response).encode())
 
-    def _handle_platforms(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_platforms(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         platforms_data = director.get_platforms()
         response = {
             "platforms": platforms_data,
             "total": len(platforms_data)
         }
-        respond(200, {"Content-Type": "application/json"}, json.encode(response))
+        respond(200, {"Content-Type": "application/json"}, json.encode(response).encode())
 
-    def _handle_mcp(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_mcp(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         try:
             body_str = ctx.request.body.decode()
             _log.debug("MCP request received", {"body": body_str})
@@ -2682,16 +2682,16 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 response = MCPResponse(body_dict.get("id"), None, error)
                 response_json = json.encode(response.to_dict())
                 _log.debug("MCP unknown method response", {"response": response_json})
-                respond(200, {"Content-Type": "application/json"}, response_json)
+                respond(200, {"Content-Type": "application/json"}, response_json.encode())
         except Exception as e:
             _log.error("MCP routing error", {"error": str(e)})
             error = MCPError(MCP_INTERNAL_ERROR, str(e))
             response = MCPResponse(None, None, error)
             response_json = json.encode(response.to_dict())
             _log.debug("MCP routing error response", {"response": response_json})
-            respond(200, {"Content-Type": "application/json"}, response_json)
+            respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
-    def _handle_static(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
+    def _handle_static(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         try:
             _static_file_server = expect(static_file_server, "WebServ.static_file_server")
             static_response = _static_file_server.maybe_serve(ctx.request.method, ctx.path)
@@ -2699,10 +2699,10 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 status_code, headers, body = static_response
                 respond(status_code, headers, body)
                 return
-            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}))
+            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
             return
         except ValueError:
-            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}))
+            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
             return
 
     def _install_api_routes(g: http_router.RouteGroup):
@@ -2713,8 +2713,8 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
     def _install_static_routes(g: http_router.RouteGroup):
         g.get("/*path", _handle_static)
 
-    def _handle_not_found(ctx: http_router.Context, respond: proc(int, dict[str, str], str) -> None):
-        respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}))
+    def _handle_not_found(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+        respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
 
     router = http_router.Router()
     router.use(http_router.recoverer_middleware(log=_log))
