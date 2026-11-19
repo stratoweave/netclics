@@ -1,9 +1,9 @@
 import file
-import uri
+import std.uri
 
 
 def _normalize_request_path(path: str) -> str:
-    parsed_path, _ = uri.parse_path(path)
+    parsed_path, _ = std.uri.parse_path(path)
     path_without_query = parsed_path if parsed_path is not None else "/"
     if "\\" in path_without_query:
         raise ValueError("Backslash not allowed in URI path")

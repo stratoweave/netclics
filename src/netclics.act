@@ -1,8 +1,8 @@
-import argparse
+import std.argparse
 import file
-import http
+import std.http
 import http_router
-import json
+import std.json
 import logging
 import net
 import stratoweave.device as swdev
@@ -2304,7 +2304,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
     def _send_success_response(request_id: ?value, result: ?value, respond: proc(int, dict[str, str], bytes) -> None, context: str):
         """Send a successful MCP response with logging"""
         response = MCPResponse(request_id, result, None)
-        response_json = json.encode(response.to_dict())
+        response_json = std.json.encode(response.to_dict())
         _log.debug("MCP {context} response", {"context": context, "response": response_json})
         respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
@@ -2312,7 +2312,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         """Send an error MCP response with logging"""
         error = MCPError(error_code, error_msg)
         response = MCPResponse(request_id, None, error)
-        response_json = json.encode(response.to_dict())
+        response_json = std.json.encode(response.to_dict())
         _log.debug("MCP {context} error response", {"context": context, "response": response_json})
         respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
@@ -2339,7 +2339,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         try:
             body_str = request.body.decode()
             _log.debug("MCP initialize request", {"body": body_str})
-            mcp_req = MCPRequest.from_json(json.decode(body_str))
+            mcp_req = MCPRequest.from_json(std.json.decode(body_str))
 
             # Return server info and capabilities
             result = {
@@ -2376,7 +2376,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         try:
             body_str = request.body.decode()
             _log.debug("MCP tools/list request", {"body": body_str})
-            mcp_req = MCPRequest.from_json(json.decode(body_str))
+            mcp_req = MCPRequest.from_json(std.json.decode(body_str))
 
             # Return list of available tools
             tools = [
@@ -2423,7 +2423,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         try:
             body_str = request.body.decode()
             _log.debug("MCP tools/call request", {"body": body_str})
-            mcp_req = MCPRequest.from_json(json.decode(body_str))
+            mcp_req = MCPRequest.from_json(std.json.decode(body_str))
 
             # Extract tool name and arguments from params
             tool_name = _get_str(mcp_req.params, "name")
@@ -2610,7 +2610,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
         try:
             body_str = ctx.request.body.decode()
             _log.debug("Request body", {"body": body_str})
-            body_dict = json.decode(body_str)
+            body_dict = std.json.decode(body_str)
             _log.debug("Parsed JSON", {"body_dict": str(body_dict)})
 
             convert_req = ConvertRequest.from_json(body_dict)
@@ -2636,14 +2636,14 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                         "error": error_msg,
                         "platform": convert_req.platform
                     }
-                response_str = json.encode(response)
+                response_str = std.json.encode(response)
                 _log.debug("Sending HTTP response", {"response_length": len(response_str)})
                 respond(200, {"Content-Type": "application/json"}, response_str.encode())
 
             director.convert(convert_req, on_conversion_done)
         except Exception as e:
             error_dict = {"success": False, "error": str(e)}
-            error_str = json.encode(error_dict)
+            error_str = std.json.encode(error_dict)
             respond(400, {"Content-Type": "application/json"}, error_str.encode())
 
     def _handle_instances(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
@@ -2652,7 +2652,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
             "instances": instances_data,
             "total": len(instances_data)
         }
-        respond(200, {"Content-Type": "application/json"}, json.encode(response).encode())
+        respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
 
     def _handle_platforms(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         platforms_data = director.get_platforms()
@@ -2660,13 +2660,13 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
             "platforms": platforms_data,
             "total": len(platforms_data)
         }
-        respond(200, {"Content-Type": "application/json"}, json.encode(response).encode())
+        respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
 
     def _handle_mcp(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
         try:
             body_str = ctx.request.body.decode()
             _log.debug("MCP request received", {"body": body_str})
-            body_dict = json.decode(body_str)
+            body_dict = std.json.decode(body_str)
             method = _get_str(body_dict, "method")
             _log.debug("MCP method", {"method": method})
 
@@ -2680,14 +2680,14 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 _log.warning("Unknown MCP method", {"method": method})
                 error = MCPError(MCP_METHOD_NOT_FOUND, "Unknown method: " + str(method))
                 response = MCPResponse(body_dict.get("id"), None, error)
-                response_json = json.encode(response.to_dict())
+                response_json = std.json.encode(response.to_dict())
                 _log.debug("MCP unknown method response", {"response": response_json})
                 respond(200, {"Content-Type": "application/json"}, response_json.encode())
         except Exception as e:
             _log.error("MCP routing error", {"error": str(e)})
             error = MCPError(MCP_INTERNAL_ERROR, str(e))
             response = MCPResponse(None, None, error)
-            response_json = json.encode(response.to_dict())
+            response_json = std.json.encode(response.to_dict())
             _log.debug("MCP routing error response", {"response": response_json})
             respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
@@ -2699,10 +2699,10 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 status_code, headers, body = static_response
                 respond(status_code, headers, body)
                 return
-            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
+            respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
             return
         except ValueError:
-            respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
+            respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
             return
 
     def _install_api_routes(g: http_router.RouteGroup):
@@ -2714,7 +2714,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
         g.get("/*path", _handle_static)
 
     def _handle_not_found(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        respond(404, {"Content-Type": "application/json"}, json.encode({"error": "Not found"}).encode())
+        respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
 
     router = http_router.Router()
     router.use(http_router.recoverer_middleware(log=_log))
@@ -2758,15 +2758,15 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
     def _on_https_listen_error(listener, error):
         _log.error("HTTPS listen error", {"error": error})
 
-    var http_server: ?http.Listener = None
+    var http_server: ?std.http.Listener = None
     if http_port is not None:
-        http_server = http.Listener(listen_cap, "::", http_port, _on_http_accept, _on_http_listen_error)
+        http_server = std.http.Listener(listen_cap, "::", http_port, _on_http_accept, _on_http_listen_error)
     else:
         _log.warning("HTTP endpoint disabled")
 
-    var https_server: ?http.TLSListener = None
+    var https_server: ?std.http.TLSListener = None
     if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
-        https_server = http.TLSListener(
+        https_server = std.http.TLSListener(
             listen_cap,
             "::",
             https_port,
@@ -2783,7 +2783,7 @@ actor main(env: Env):
     listen_cap = net.TCPListenCap(net.TCPCap(net.NetCap(env.cap)))
 
     def _parse_args():
-        p = argparse.Parser()
+        p = std.argparse.Parser()
         p.add_option("http-port", "int", default=8080, help="HTTP listen port (set to 0 to disable)")
         p.add_option("https-port", "int", default=0, help="HTTPS listen port (set to 0 to disable)")
         p.add_option("config", "str", default=netclics_config.DEFAULT_CONFIG_PATH, help="Path to config JSON file")
@@ -2796,10 +2796,10 @@ actor main(env: Env):
     maybe_args = None
     try:
         maybe_args = _parse_args()
-    except argparse.PrintUsage as exc:
+    except std.argparse.PrintUsage as exc:
         print(exc.error_message)
         await async env.exit(0)
-    except argparse.ArgumentError as exc:
+    except std.argparse.ArgumentError as exc:
         print(exc.error_message, err=True)
         await async env.exit(1)
 

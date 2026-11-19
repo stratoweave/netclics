@@ -1,4 +1,4 @@
-import json
+import std.json
 import logging
 
 
@@ -71,7 +71,7 @@ def _parse_docker_inspect_entry(first: dict[str, ?value]) -> (ip: str, netconf_p
 
 
 def parse_docker_inspect(inspect_output: str) -> (ip: str, netconf_port: u64, ssh_port: u64, state: str, health: str):
-    decoded = json.decode_list(inspect_output)
+    decoded = std.json.decode_list(inspect_output)
     if len(decoded) == 0:
         raise ValueError("docker inspect output must be a non-empty JSON list")
 

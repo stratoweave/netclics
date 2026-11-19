@@ -1,5 +1,5 @@
 import file
-import json
+import std.json
 import logging
 
 DEFAULT_CONFIG_PATH = "config/netclics.json"
@@ -240,7 +240,7 @@ actor ConfigChangeWatcher(read_cap: file.ReadFileCap,
             last_snapshot = current_text
 
             try:
-                decoded = json.decode(current_text)
+                decoded = std.json.decode(current_text)
                 new_config = parse_system_config(decoded)
             except Exception as e:
                 _log.error("Config file changed but decode failed", {"path": config_path, "error": str(e)})
