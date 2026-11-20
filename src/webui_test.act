@@ -104,7 +104,6 @@ actor _test_serves_assets_with_cache_headers(t: testing.EnvT):
         except Exception as e:
             t.failure(e)
 
-    __startup__()
 
 
 actor _test_spa_fallback_heuristic(t: testing.EnvT):
@@ -144,7 +143,6 @@ actor _test_spa_fallback_heuristic(t: testing.EnvT):
         except Exception as e:
             t.failure(e)
 
-    __startup__()
 
 
 def _test_rejects_relative_paths():
@@ -169,7 +167,6 @@ actor _test_no_index_no_fallback(t: testing.EnvT):
         except Exception as e:
             t.failure(e)
 
-    __startup__()
 
 
 def _test_embedded_assets():
@@ -219,7 +216,3 @@ actor _test_api_and_static_routes_take_precedence(t: testing.EnvT):
                 200, b"api", {"Content-Type": "application/json"}, after_instances)
         except Exception as e:
             t.failure(e)
-
-    __startup__()
-
-

@@ -52,5 +52,3 @@ actor _test_parse_docker_inspect(t: testing.EnvT):
             t.success()
         except Exception as e:
             t.failure(e)
-
-    __startup__()

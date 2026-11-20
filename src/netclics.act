@@ -106,7 +106,6 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
     proc def __startup__():
         logh.set_handler(log_handler)
 
-    __startup__()
 
 
 class _SchemaId:
@@ -1653,7 +1652,6 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
     proc def __startup__():
         logh.set_handler(log_handler)
 
-    __startup__()
 
 
 actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, log_handler: logging.Handler):
@@ -2043,7 +2041,6 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
     proc def __startup__():
         logh.set_handler(log_handler)
 
-    __startup__()
 
 
 class ConvertRequest(object):
@@ -2217,7 +2214,6 @@ actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler
     proc def __startup__():
         logh.set_handler(log_handler)
 
-    __startup__()
 
 
 def _get_str(d: dict[str, ?value], k: str, dv: str = "") -> str:
@@ -2614,7 +2610,6 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
     proc def __startup__():
         logh.set_handler(log_handler)
 
-    __startup__()
 
 
 actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handler: logging.Handler,
@@ -2802,7 +2797,6 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
         else:
             _log.warning("HTTPS endpoint disabled")
 
-    __startup__()
 
 
 actor main(env: Env):
@@ -2893,7 +2887,3 @@ actor main(env: Env):
             _log.info("NETCLICS started", {"http_port": http_port})
 
             # TODO: stats API, number of requests / client (anon)
-
-    __startup__()
-
-

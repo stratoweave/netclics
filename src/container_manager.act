@@ -366,5 +366,3 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
 
     proc def __startup__():
         logh.set_handler(log_handler)
-
-    __startup__()

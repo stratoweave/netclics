@@ -260,5 +260,3 @@ actor ConfigChangeWatcher(read_cap: file.ReadFileCap,
         _log.info("Starting config change watcher", {"path": config_path, "poll_interval_seconds": poll_interval_seconds})
 
         _poll()
-
-    __startup__()
