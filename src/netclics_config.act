@@ -218,7 +218,6 @@ actor ConfigChangeWatcher(read_cap: file.ReadFileCap,
     TODO: switch to inotify when Acton supports it.
     """
     logh = logging.Handler("ConfigChangeWatcher")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     var last_snapshot: ?str = None
@@ -255,5 +254,9 @@ actor ConfigChangeWatcher(read_cap: file.ReadFileCap,
 
         after poll_interval_seconds: _poll()
 
-    _log.info("Starting config change watcher", {"path": config_path, "poll_interval_seconds": poll_interval_seconds})
-    _poll()
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+        _log.info("Starting config change watcher", {"path": config_path, "poll_interval_seconds": poll_interval_seconds})
+
+        _poll()
