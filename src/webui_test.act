@@ -81,64 +81,68 @@ def _test_content_type():
 
 
 actor _test_serves_assets_with_cache_headers(t: testing.EnvT):
-    r = http_router.Router()
+    proc def __startup__():
+        r = http_router.Router()
 
-    def after_index_alias():
-        _serve_expect(t, r, _request("GET", "/index.html"), 200, _INDEX_BODY,
-            {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache"})
+        def after_index_alias():
+            _serve_expect(t, r, _request("GET", "/index.html"), 200, _INDEX_BODY,
+                {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache"})
 
-    def after_root():
-        _serve_expect(t, r, _request("GET", "/"), 200, _INDEX_BODY,
-            {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache"}, after_index_alias)
+        def after_root():
+            _serve_expect(t, r, _request("GET", "/"), 200, _INDEX_BODY,
+                {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache"}, after_index_alias)
 
-    def after_version():
-        _serve_expect(t, r, _request("GET", "/_app/version.json"), 200, b'{"version":"0.2.0"}',
-            {"Content-Type": "application/json", "Cache-Control": "no-cache"}, after_root)
+        def after_version():
+            _serve_expect(t, r, _request("GET", "/_app/version.json"), 200, b'{"version":"0.2.0"}',
+                {"Content-Type": "application/json", "Cache-Control": "no-cache"}, after_root)
 
-    try:
-        swstatic.install(r, _assets())
-        _serve_expect(t, r, _request("GET", "/_app/immutable/chunks/a.js"), 200, b"console.log(1)",
-            {"Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=31536000, immutable"},
-            after_version)
-    except Exception as e:
-        t.failure(e)
+        try:
+            swstatic.install(r, _assets())
+            _serve_expect(t, r, _request("GET", "/_app/immutable/chunks/a.js"), 200, b"console.log(1)",
+                {"Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=31536000, immutable"},
+                after_version)
+        except Exception as e:
+            t.failure(e)
+
 
 
 actor _test_spa_fallback_heuristic(t: testing.EnvT):
-    r = http_router.Router()
+    proc def __startup__():
+        r = http_router.Router()
 
-    def after_zero_quality():
-        _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "TEXT/HTML"}),
-            200, _INDEX_BODY, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Vary": "Accept"})
+        def after_zero_quality():
+            _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "TEXT/HTML"}),
+                200, _INDEX_BODY, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Vary": "Accept"})
 
-    def after_post():
-        # An explicit q=0 means that HTML is not acceptable.
-        _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "application/json, text/html;q=0"}),
-            404, b"", {"Vary": "Accept"}, after_zero_quality)
+        def after_post():
+            # An explicit q=0 means that HTML is not acceptable.
+            _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "application/json, text/html;q=0"}),
+                404, b"", {"Vary": "Accept"}, after_zero_quality)
 
-    def after_non_get():
-        # Query strings do not confuse the fallback.
-        _serve_expect(t, r, _request("GET", "/services/l3vpn-site/new?clone=x", {"accept": "text/html"}),
-            200, _INDEX_BODY, {"Vary": "Accept"}, after_post)
+        def after_non_get():
+            # Query strings do not confuse the fallback.
+            _serve_expect(t, r, _request("GET", "/services/l3vpn-site/new?clone=x", {"accept": "text/html"}),
+                200, _INDEX_BODY, {"Vary": "Accept"}, after_post)
 
-    def after_no_accept():
-        # Other methods never reach the asset route; the router's default
-        # not-found handler answers.
-        _serve_expect(t, r, _request("POST", "/services/foo", {"accept": "text/html"}), 404, b"", {}, after_non_get)
+        def after_no_accept():
+            # Other methods never reach the asset route; the router's default
+            # not-found handler answers.
+            _serve_expect(t, r, _request("POST", "/services/foo", {"accept": "text/html"}), 404, b"", {}, after_non_get)
 
-    def after_api_accept():
-        _serve_expect(t, r, _request("GET", "/services/foo"), 404, b"", {"Vary": "Accept"}, after_no_accept)
+        def after_api_accept():
+            _serve_expect(t, r, _request("GET", "/services/foo"), 404, b"", {"Vary": "Accept"}, after_no_accept)
 
-    def after_navigation():
-        _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "*/*"}), 404, b"", {"Vary": "Accept"}, after_api_accept)
+        def after_navigation():
+            _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "*/*"}), 404, b"", {"Vary": "Accept"}, after_api_accept)
 
-    try:
-        swstatic.install(r, _assets())
-        _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "text/html,application/xhtml+xml;q=0.9"}),
-            200, _INDEX_BODY, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Vary": "Accept"},
-            after_navigation)
-    except Exception as e:
-        t.failure(e)
+        try:
+            swstatic.install(r, _assets())
+            _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "text/html,application/xhtml+xml;q=0.9"}),
+                200, _INDEX_BODY, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Vary": "Accept"},
+                after_navigation)
+        except Exception as e:
+            t.failure(e)
+
 
 
 def _test_rejects_relative_paths():
@@ -151,16 +155,18 @@ def _test_rejects_relative_paths():
 
 
 actor _test_no_index_no_fallback(t: testing.EnvT):
-    r = http_router.Router()
+    proc def __startup__():
+        r = http_router.Router()
 
-    def after_missing():
-        _serve_expect(t, r, _request("GET", "/", {"accept": "text/html"}), 404, b"", {})
+        def after_missing():
+            _serve_expect(t, r, _request("GET", "/", {"accept": "text/html"}), 404, b"", {})
 
-    try:
-        swstatic.install(r, {"/_app/immutable/chunks/a.js": b"console.log(1)"})
-        _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "text/html"}), 404, b"", {}, after_missing)
-    except Exception as e:
-        t.failure(e)
+        try:
+            swstatic.install(r, {"/_app/immutable/chunks/a.js": b"console.log(1)"})
+            _serve_expect(t, r, _request("GET", "/services/foo", {"accept": "text/html"}), 404, b"", {}, after_missing)
+        except Exception as e:
+            t.failure(e)
+
 
 
 def _test_embedded_assets():
@@ -174,38 +180,39 @@ def _test_embedded_assets():
 
 
 actor _test_api_and_static_routes_take_precedence(t: testing.EnvT):
-    r = http_router.Router()
+    proc def __startup__():
+        r = http_router.Router()
 
-    def api(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        respond(200, {"Content-Type": "application/json"}, b"api")
+        def api(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            respond(200, {"Content-Type": "application/json"}, b"api")
 
-    def mounted(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        respond(200, {"Content-Type": "text/plain"}, b"mounted")
+        def mounted(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            respond(200, {"Content-Type": "text/plain"}, b"mounted")
 
-    def after_mcp():
-        _serve_expect(t, r, _request("GET", "/static/file.txt", {"accept": "text/html"}),
-            200, b"mounted", {"Content-Type": "text/plain"})
+        def after_mcp():
+            _serve_expect(t, r, _request("GET", "/static/file.txt", {"accept": "text/html"}),
+                200, b"mounted", {"Content-Type": "text/plain"})
 
-    def after_convert():
-        _serve_expect(t, r, _request("POST", "/mcp"),
-            200, b"api", {"Content-Type": "application/json"}, after_mcp)
+        def after_convert():
+            _serve_expect(t, r, _request("POST", "/mcp"),
+                200, b"api", {"Content-Type": "application/json"}, after_mcp)
 
-    def after_platforms():
-        _serve_expect(t, r, _request("POST", "/api/v1/convert"),
-            200, b"api", {"Content-Type": "application/json"}, after_convert)
+        def after_platforms():
+            _serve_expect(t, r, _request("POST", "/api/v1/convert"),
+                200, b"api", {"Content-Type": "application/json"}, after_convert)
 
-    def after_instances():
-        _serve_expect(t, r, _request("GET", "/api/v1/platforms", {"accept": "text/html"}),
-            200, b"api", {"Content-Type": "application/json"}, after_platforms)
+        def after_instances():
+            _serve_expect(t, r, _request("GET", "/api/v1/platforms", {"accept": "text/html"}),
+                200, b"api", {"Content-Type": "application/json"}, after_platforms)
 
-    try:
-        r.get("/api/v1/platforms", api)
-        r.get("/api/v1/instances", api)
-        r.post("/api/v1/convert", api)
-        r.post("/mcp", api)
-        r.get("/static/*path", mounted)
-        swstatic.install(r, webui_assets.ASSETS)
-        _serve_expect(t, r, _request("GET", "/api/v1/instances", {"accept": "text/html"}),
-            200, b"api", {"Content-Type": "application/json"}, after_instances)
-    except Exception as e:
-        t.failure(e)
+        try:
+            r.get("/api/v1/platforms", api)
+            r.get("/api/v1/instances", api)
+            r.post("/api/v1/convert", api)
+            r.post("/mcp", api)
+            r.get("/static/*path", mounted)
+            swstatic.install(r, webui_assets.ASSETS)
+            _serve_expect(t, r, _request("GET", "/api/v1/instances", {"accept": "text/html"}),
+                200, b"api", {"Content-Type": "application/json"}, after_instances)
+        except Exception as e:
+            t.failure(e)

@@ -84,9 +84,13 @@ def _resolve_configured_root(fs: file.FS, configured_root_dir: str) -> str:
     return resolved
 
 
-actor StaticFileServer(file_cap: file.FileCap, read_cap: file.ReadFileCap, configured_root_dir: str):
-    var fs = file.FS(file_cap)
-    var root_dir = _resolve_configured_root(fs, configured_root_dir)
+proc def static_file_server(file_cap: file.FileCap, read_cap: file.ReadFileCap, configured_root_dir: str) -> StaticFileServer:
+    fs = file.FS(file_cap)
+    root_dir = _resolve_configured_root(fs, configured_root_dir)
+    return StaticFileServer(fs, read_cap, root_dir)
+
+
+actor StaticFileServer(fs: file.FS, read_cap: file.ReadFileCap, root_dir: str):
 
     def get_root_dir() -> str:
         return root_dir

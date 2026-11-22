@@ -40,7 +40,6 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
 
     # Set up logging
     logh = logging.Handler("ContainerManager")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     def start_container(platform: netclics_config.PlatformConfig, instance_id: str) -> str:
@@ -103,6 +102,10 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
         # In reality, would run: docker stop <container_name>
         _log.info("Stopping container", {"container_name": container_name})
         # Since we use --rm, container will be removed automatically
+
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
 
 
 class _SchemaId:
@@ -172,7 +175,6 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
 
     # Set up logging
     logh = logging.Handler("DeviceInstance [{instance_id}]")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     def is_static_instance() -> bool:
@@ -1647,6 +1649,10 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         _log.info("Creating NETCONF client for schema initialization", {"host": ip_address, "port": netconf_port})
         create_netconf_client_with_retry(username, password, on_connect_success, on_connect_failure, on_error=on_connect_error)
 
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+
 
 actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: container_manager.ContainerManager, auth: WorldCap, log_handler: logging.Handler):
     """Manages device lifecycle and state transitions"""
@@ -1664,7 +1670,6 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
 
     # Set up logging
     logh = logging.Handler("DeviceManager")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     def _find_instance(platform_name: str, instance_id: str) -> ?DeviceInstance:
@@ -2033,6 +2038,11 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
         """Get system configuration"""
         return config_state
 
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+
+
 class ConvertRequest(object):
     def __init__(self, input: list[str], format: str, target_format: str, platform: str, module_set: str, cb: ?action(str) -> None = None):
         self.input = input
@@ -2073,7 +2083,6 @@ class ConvertRequest(object):
 actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler):
     var device_manager: ?DeviceManager = None
     logh = logging.Handler("Director")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     def set_config(conf: netclics_config.SystemConfig, cb: action(?Exception) -> None):
@@ -2202,6 +2211,11 @@ actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler
 
 # MCP Helper Functions
 
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+
+
 def _get_str(d: dict[str, ?value], k: str, dv: str = "") -> str:
     """Safely extract a string value from a dictionary, with default"""
     v = d.get(k)
@@ -2296,7 +2310,6 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
 
     # Set up logging
     logh = logging.Handler("MCPServer")
-    logh.set_handler(log_handler)
     _log = logging.Logger(logh)
 
     # Helper Functions for Response Handling
@@ -2594,275 +2607,283 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "list_instances")
 
+    proc def __startup__():
+        logh.set_handler(log_handler)
+
+
+
 actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handler: logging.Handler,
               config_path: str, read_cap: file.ReadFileCap, static_file_server: ?static_files.StaticFileServer = None,
               static_mount_prefix: str = "/static", https_port: ?int = None,
               tls_cert_pem: ?bytes = None, tls_key_pem: ?bytes = None):
-    logh = logging.Handler("WebServ")
-    logh.set_handler(log_handler)
-    _log = logging.Logger(logh)
+    proc def __startup__():
+        logh = logging.Handler("WebServ")
+        logh.set_handler(log_handler)
+        _log = logging.Logger(logh)
 
-    # Create MCP server instance
-    mcp = MCPServer(director.convert, director.get_platforms, director.get_instances, log_handler)
+        # Create MCP server instance
+        mcp = MCPServer(director.convert, director.get_platforms, director.get_instances, log_handler)
 
-    def _handle_convert(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        _log.info("Processing conversion request")
-        try:
-            body_str = ctx.request.body.decode()
-            _log.debug("Request body", {"body": body_str})
-            body_dict = std.json.decode(body_str)
-            _log.debug("Parsed JSON", {"body_dict": str(body_dict)})
+        def _handle_convert(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            _log.info("Processing conversion request")
+            try:
+                body_str = ctx.request.body.decode()
+                _log.debug("Request body", {"body": body_str})
+                body_dict = std.json.decode(body_str)
+                _log.debug("Parsed JSON", {"body_dict": str(body_dict)})
 
-            convert_req = ConvertRequest.from_json(body_dict)
-            _log.info("ConvertRequest created", {"input_format": convert_req.format, "output_format": convert_req.target_format, "platform": convert_req.platform})
+                convert_req = ConvertRequest.from_json(body_dict)
+                _log.info("ConvertRequest created", {"input_format": convert_req.format, "output_format": convert_req.target_format, "platform": convert_req.platform})
 
-            def on_conversion_done(result: ?(base_config: str, steps: list[(input: str, config: str, diff: str)]), error: ?Exception):
-                _log.debug("Conversion completed, preparing HTTP response")
-                if error is None and result is not None:
-                    _log.info("Conversion successful")
-                    steps = [{"input": step.input, "config": step.config, "diff": step.diff} for step in result.steps]
-                    response = {
-                        "success": True,
-                        "base_config": result.base_config,
-                        "steps": steps,
-                        "platform": convert_req.platform,
-                        "platform_version": "1.0"
-                    }
+                def on_conversion_done(result: ?(base_config: str, steps: list[(input: str, config: str, diff: str)]), error: ?Exception):
+                    _log.debug("Conversion completed, preparing HTTP response")
+                    if error is None and result is not None:
+                        _log.info("Conversion successful")
+                        steps = [{"input": step.input, "config": step.config, "diff": step.diff} for step in result.steps]
+                        response = {
+                            "success": True,
+                            "base_config": result.base_config,
+                            "steps": steps,
+                            "platform": convert_req.platform,
+                            "platform_version": "1.0"
+                        }
+                    else:
+                        error_msg = str(error) if error is not None else "Conversion failed"
+                        _log.error("Conversion failed", {"error": error_msg})
+                        response = {
+                            "success": False,
+                            "error": error_msg,
+                            "platform": convert_req.platform
+                        }
+                    response_str = std.json.encode(response)
+                    _log.debug("Sending HTTP response", {"response_length": len(response_str)})
+                    respond(200, {"Content-Type": "application/json"}, response_str.encode())
+
+                director.convert(convert_req, on_conversion_done)
+            except Exception as e:
+                error_dict = {"success": False, "error": str(e)}
+                error_str = std.json.encode(error_dict)
+                respond(400, {"Content-Type": "application/json"}, error_str.encode())
+
+        def _handle_instances(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            instances_data = director.get_instances()
+            response = {
+                "instances": instances_data,
+                "total": len(instances_data)
+            }
+            respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
+
+        def _handle_platforms(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            platforms_data = director.get_platforms()
+            response = {
+                "platforms": platforms_data,
+                "total": len(platforms_data)
+            }
+            respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
+
+        def _handle_mcp(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            try:
+                body_str = ctx.request.body.decode()
+                _log.debug("MCP request received", {"body": body_str})
+                body_dict = std.json.decode(body_str)
+                method = _get_str(body_dict, "method")
+                _log.debug("MCP method", {"method": method})
+
+                if method == "initialize":
+                    mcp.handle_initialize(ctx.request, respond)
+                elif method == "tools/list":
+                    mcp.handle_tools_list(ctx.request, respond)
+                elif method == "tools/call":
+                    mcp.handle_tools_call(ctx.request, respond)
                 else:
-                    error_msg = str(error) if error is not None else "Conversion failed"
-                    _log.error("Conversion failed", {"error": error_msg})
-                    response = {
-                        "success": False,
-                        "error": error_msg,
-                        "platform": convert_req.platform
-                    }
-                response_str = std.json.encode(response)
-                _log.debug("Sending HTTP response", {"response_length": len(response_str)})
-                respond(200, {"Content-Type": "application/json"}, response_str.encode())
-
-            director.convert(convert_req, on_conversion_done)
-        except Exception as e:
-            error_dict = {"success": False, "error": str(e)}
-            error_str = std.json.encode(error_dict)
-            respond(400, {"Content-Type": "application/json"}, error_str.encode())
-
-    def _handle_instances(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        instances_data = director.get_instances()
-        response = {
-            "instances": instances_data,
-            "total": len(instances_data)
-        }
-        respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
-
-    def _handle_platforms(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        platforms_data = director.get_platforms()
-        response = {
-            "platforms": platforms_data,
-            "total": len(platforms_data)
-        }
-        respond(200, {"Content-Type": "application/json"}, std.json.encode(response).encode())
-
-    def _handle_mcp(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        try:
-            body_str = ctx.request.body.decode()
-            _log.debug("MCP request received", {"body": body_str})
-            body_dict = std.json.decode(body_str)
-            method = _get_str(body_dict, "method")
-            _log.debug("MCP method", {"method": method})
-
-            if method == "initialize":
-                mcp.handle_initialize(ctx.request, respond)
-            elif method == "tools/list":
-                mcp.handle_tools_list(ctx.request, respond)
-            elif method == "tools/call":
-                mcp.handle_tools_call(ctx.request, respond)
-            else:
-                _log.warning("Unknown MCP method", {"method": method})
-                error = MCPError(MCP_METHOD_NOT_FOUND, "Unknown method: " + str(method))
-                response = MCPResponse(body_dict.get("id"), None, error)
+                    _log.warning("Unknown MCP method", {"method": method})
+                    error = MCPError(MCP_METHOD_NOT_FOUND, "Unknown method: " + str(method))
+                    response = MCPResponse(body_dict.get("id"), None, error)
+                    response_json = std.json.encode(response.to_dict())
+                    _log.debug("MCP unknown method response", {"response": response_json})
+                    respond(200, {"Content-Type": "application/json"}, response_json.encode())
+            except Exception as e:
+                _log.error("MCP routing error", {"error": str(e)})
+                error = MCPError(MCP_INTERNAL_ERROR, str(e))
+                response = MCPResponse(None, None, error)
                 response_json = std.json.encode(response.to_dict())
-                _log.debug("MCP unknown method response", {"response": response_json})
+                _log.debug("MCP routing error response", {"response": response_json})
                 respond(200, {"Content-Type": "application/json"}, response_json.encode())
-        except Exception as e:
-            _log.error("MCP routing error", {"error": str(e)})
-            error = MCPError(MCP_INTERNAL_ERROR, str(e))
-            response = MCPResponse(None, None, error)
-            response_json = std.json.encode(response.to_dict())
-            _log.debug("MCP routing error response", {"response": response_json})
-            respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
-    def _handle_static(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        try:
-            _static_file_server = expect(static_file_server, "WebServ.static_file_server")
-            static_response = _static_file_server.maybe_serve(ctx.request.method, ctx.path)
-            if static_response is not None:
-                status_code, headers, body = static_response
-                respond(status_code, headers, body)
+        def _handle_static(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
+            try:
+                _static_file_server = expect(static_file_server, "WebServ.static_file_server")
+                static_response = _static_file_server.maybe_serve(ctx.request.method, ctx.path)
+                if static_response is not None:
+                    status_code, headers, body = static_response
+                    respond(status_code, headers, body)
+                    return
+                respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
                 return
+            except ValueError:
+                respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
+                return
+
+        def _install_api_routes(g: http_router.RouteGroup):
+            g.post("/convert", _handle_convert)
+            g.get("/instances", _handle_instances)
+            g.get("/platforms", _handle_platforms)
+
+        def _install_static_routes(g: http_router.RouteGroup):
+            g.get("/*path", _handle_static)
+
+        def _handle_not_found(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
             respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
-            return
-        except ValueError:
-            respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
-            return
 
-    def _install_api_routes(g: http_router.RouteGroup):
-        g.post("/convert", _handle_convert)
-        g.get("/instances", _handle_instances)
-        g.get("/platforms", _handle_platforms)
+        router = http_router.Router()
+        router.use(http_router.recoverer_middleware(log=_log))
+        router.use(http_router.access_log_middleware(_log))
+        router.not_found(_handle_not_found)
+        router.route("/api/v1", _install_api_routes)
+        router.post("/mcp", _handle_mcp)
 
-    def _install_static_routes(g: http_router.RouteGroup):
-        g.get("/*path", _handle_static)
+        # Explicit static mounts take precedence over embedded UI assets.
+        if static_file_server is not None:
+            router.route(static_mount_prefix, _install_static_routes)
 
-    def _handle_not_found(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
-        respond(404, {"Content-Type": "application/json"}, std.json.encode({"error": "Not found"}).encode())
+        # Preserve a root static mount: it owns the catch-all route.
+        if static_file_server is None or static_mount_prefix.strip("/") != "":
+            swstatic.install(router, webui_assets.ASSETS)
 
-    router = http_router.Router()
-    router.use(http_router.recoverer_middleware(log=_log))
-    router.use(http_router.access_log_middleware(_log))
-    router.not_found(_handle_not_found)
-    router.route("/api/v1", _install_api_routes)
-    router.post("/mcp", _handle_mcp)
+        def _serve_with_router(request, respond):
+            router.serve(request, respond)
 
-    # Explicit static mounts take precedence over embedded UI assets.
-    if static_file_server is not None:
-        router.route(static_mount_prefix, _install_static_routes)
+        def _on_http_server_request(server, request, respond):
+            _serve_with_router(request, respond)
 
-    # Preserve a root static mount: it owns the catch-all route.
-    if static_file_server is None or static_mount_prefix.strip("/") != "":
-        swstatic.install(router, webui_assets.ASSETS)
+        def _on_https_server_request(server, request, respond):
+            _serve_with_router(request, respond)
 
-    def _serve_with_router(request, respond):
-        router.serve(request, respond)
+        def _on_http_accept(server):
+            server.cb_install(_on_http_server_request, _on_http_server_error)
 
-    def _on_http_server_request(server, request, respond):
-        _serve_with_router(request, respond)
+        def _on_https_accept(server):
+            server.cb_install(_on_https_server_request, _on_https_server_error)
 
-    def _on_https_server_request(server, request, respond):
-        _serve_with_router(request, respond)
+        def _on_http_server_error(server, error):
+            _log.error("HTTP server error", {"error": error})
 
-    def _on_http_accept(server):
-        server.cb_install(_on_http_server_request, _on_http_server_error)
+        def _on_https_server_error(server, error):
+            _log.error("HTTPS server error", {"error": error})
 
-    def _on_https_accept(server):
-        server.cb_install(_on_https_server_request, _on_https_server_error)
+        def _on_http_listen_error(listener, error):
+            _log.error("HTTP listen error", {"error": error})
 
-    def _on_http_server_error(server, error):
-        _log.error("HTTP server error", {"error": error})
+        def _on_https_listen_error(listener, error):
+            _log.error("HTTPS listen error", {"error": error})
 
-    def _on_https_server_error(server, error):
-        _log.error("HTTPS server error", {"error": error})
+        http_server: ?std.http.Listener = None
+        if http_port is not None:
+            http_server = std.http.Listener(listen_cap, "::", http_port, _on_http_accept, _on_http_listen_error)
+        else:
+            _log.warning("HTTP endpoint disabled")
 
-    def _on_http_listen_error(listener, error):
-        _log.error("HTTP listen error", {"error": error})
+        https_server: ?std.http.TLSListener = None
+        if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
+            https_server = std.http.TLSListener(
+                listen_cap,
+                "::",
+                https_port,
+                tls_cert_pem,
+                tls_key_pem,
+                _on_https_accept,
+                _on_https_listen_error
+            )
+        else:
+            _log.warning("HTTPS endpoint disabled")
 
-    def _on_https_listen_error(listener, error):
-        _log.error("HTTPS listen error", {"error": error})
-
-    var http_server: ?std.http.Listener = None
-    if http_port is not None:
-        http_server = std.http.Listener(listen_cap, "::", http_port, _on_http_accept, _on_http_listen_error)
-    else:
-        _log.warning("HTTP endpoint disabled")
-
-    var https_server: ?std.http.TLSListener = None
-    if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
-        https_server = std.http.TLSListener(
-            listen_cap,
-            "::",
-            https_port,
-            tls_cert_pem,
-            tls_key_pem,
-            _on_https_accept,
-            _on_https_listen_error
-        )
-    else:
-        _log.warning("HTTPS endpoint disabled")
 
 
 actor main(env: Env):
-    listen_cap = net.TCPListenCap(net.TCPCap(net.NetCap(env.cap)))
+    proc def __startup__():
+        listen_cap = net.TCPListenCap(net.TCPCap(net.NetCap(env.cap)))
 
-    def _parse_args():
-        p = std.argparse.Parser()
-        p.add_option("http-port", "int", default=8080, help="HTTP listen port (set to 0 to disable)")
-        p.add_option("https-port", "int", default=0, help="HTTPS listen port (set to 0 to disable)")
-        p.add_option("config", "str", default=netclics_config.DEFAULT_CONFIG_PATH, help="Path to config JSON file")
-        p.add_option("static-dir", "str", default="", help="Directory to serve static files from (disabled when empty)")
-        p.add_option("static-prefix", "str", default="/static", help="URL path prefix to mount the static file server under")
-        p.add_option("tls-cert", "str", default="", help="Path to TLS certificate PEM file")
-        p.add_option("tls-key", "str", default="", help="Path to TLS private key PEM file")
-        return p.parse(env.argv)
+        def _parse_args():
+            p = std.argparse.Parser()
+            p.add_option("http-port", "int", default=8080, help="HTTP listen port (set to 0 to disable)")
+            p.add_option("https-port", "int", default=0, help="HTTPS listen port (set to 0 to disable)")
+            p.add_option("config", "str", default=netclics_config.DEFAULT_CONFIG_PATH, help="Path to config JSON file")
+            p.add_option("static-dir", "str", default="", help="Directory to serve static files from (disabled when empty)")
+            p.add_option("static-prefix", "str", default="/static", help="URL path prefix to mount the static file server under")
+            p.add_option("tls-cert", "str", default="", help="Path to TLS certificate PEM file")
+            p.add_option("tls-key", "str", default="", help="Path to TLS private key PEM file")
+            return p.parse(env.argv)
 
-    maybe_args = None
-    try:
-        maybe_args = _parse_args()
-    except std.argparse.PrintUsage as exc:
-        print(exc.error_message)
-        await async env.exit(0)
-    except std.argparse.ArgumentError as exc:
-        print(exc.error_message, err=True)
-        await async env.exit(1)
-
-    args = expect(maybe_args, "parsed args")
-
-    http_port = args.get_int("http-port")
-    https_port = args.get_int("https-port")
-    config_path = args.get_str("config")
-    static_dir = args.get_str("static-dir")
-    static_prefix = args.get_str("static-prefix")
-    tls_cert_path = args.get_str("tls-cert")
-    tls_key_path = args.get_str("tls-key")
-
-    file_cap = file.FileCap(env.cap)
-    read_cap = file.ReadFileCap(file_cap)
-
-    # Create logging handler
-    log_handler = logging.Handler(None)
-    log_handler.add_sink(logging.StdoutSink())
-    log_handler.set_output_level(logging.TRACE)  # Set maximum debugging for SSH/NETCONF
-
-    # Create logger for main
-    logh = logging.Handler("main")
-    logh.set_handler(log_handler)
-    _log = logging.Logger(logh)
-
-    tls_cert_pem: ?bytes = None
-    tls_key_pem: ?bytes = None
-    if https_port != 0:
-        if tls_cert_path != "" and tls_key_path != "":
-            try:
-                cert_reader = file.ReadFile(read_cap, tls_cert_path)
-                tls_cert_pem = cert_reader.read()
-                cert_reader.close()
-                key_reader = file.ReadFile(read_cap, tls_key_path)
-                tls_key_pem = key_reader.read()
-                key_reader.close()
-                _log.info("Loaded TLS certificate and key", {"https_port": https_port, "cert_path": tls_cert_path, "key_path": tls_key_path})
-            except Exception as e:
-                print("ERROR: Failed to load TLS certificate/key (cert: {tls_cert_path}, key: {tls_key_path}): {str(e)}", err=True)
-                env.exit(1)
-        else:
-            print("ERROR: HTTPS port {https_port} configured but --tls-cert and --tls-key were not both provided", err=True)
-            env.exit(1)
-
-    static_file_server: ?static_files.StaticFileServer = None
-    if static_dir != "":
+        maybe_args = None
         try:
-            initialized_static_server = static_files.StaticFileServer(file_cap, read_cap, static_dir)
-            static_file_server = initialized_static_server
-            _log.info("Enabled static file serving", {"directory": initialized_static_server.get_root_dir(), "prefix": static_prefix})
-        except Exception as e:
-            print("ERROR: Failed to initialize static file serving (dir: {static_dir}, prefix: {static_prefix}): {str(e)}", err=True)
-            env.exit(1)
+            maybe_args = _parse_args()
+        except std.argparse.PrintUsage as exc:
+            print(exc.error_message)
+            await async env.exit(0)
+        except std.argparse.ArgumentError as exc:
+            print(exc.error_message, err=True)
+            await async env.exit(1)
 
-    _log.info("Configuration file watcher will bootstrap and reload config", {"config_path": config_path})
+        args = expect(maybe_args, "parsed args")
 
-    director = Director(env.cap, env.process, log_handler)
-    config_change_watcher = netclics_config.ConfigChangeWatcher(read_cap, config_path, director.set_config, log_handler)
-    webs = WebServ(listen_cap, http_port if http_port > 0 else None, director, log_handler, config_path, read_cap, static_file_server, static_prefix, https_port if https_port > 0 else None, tls_cert_pem, tls_key_pem)
-    if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
-        _log.info("NETCLICS started", {"http_port": http_port, "https_port": https_port})
-    else:
-        _log.info("NETCLICS started", {"http_port": http_port})
+        http_port = args.get_int("http-port")
+        https_port = args.get_int("https-port")
+        config_path = args.get_str("config")
+        static_dir = args.get_str("static-dir")
+        static_prefix = args.get_str("static-prefix")
+        tls_cert_path = args.get_str("tls-cert")
+        tls_key_path = args.get_str("tls-key")
 
-        # TODO: stats API, number of requests / client (anon)
+        file_cap = file.FileCap(env.cap)
+        read_cap = file.ReadFileCap(file_cap)
+
+        # Create logging handler
+        log_handler = logging.Handler(None)
+        log_handler.add_sink(logging.StdoutSink())
+        log_handler.set_output_level(logging.TRACE)  # Set maximum debugging for SSH/NETCONF
+
+        # Create logger for main
+        logh = logging.Handler("main")
+        logh.set_handler(log_handler)
+        _log = logging.Logger(logh)
+
+        tls_cert_pem: ?bytes = None
+        tls_key_pem: ?bytes = None
+        if https_port != 0:
+            if tls_cert_path != "" and tls_key_path != "":
+                try:
+                    cert_reader = file.ReadFile(read_cap, tls_cert_path)
+                    tls_cert_pem = cert_reader.read()
+                    cert_reader.close()
+                    key_reader = file.ReadFile(read_cap, tls_key_path)
+                    tls_key_pem = key_reader.read()
+                    key_reader.close()
+                    _log.info("Loaded TLS certificate and key", {"https_port": https_port, "cert_path": tls_cert_path, "key_path": tls_key_path})
+                except Exception as e:
+                    print("ERROR: Failed to load TLS certificate/key (cert: {tls_cert_path}, key: {tls_key_path}): {str(e)}", err=True)
+                    env.exit(1)
+            else:
+                print("ERROR: HTTPS port {https_port} configured but --tls-cert and --tls-key were not both provided", err=True)
+                env.exit(1)
+
+        static_file_server: ?static_files.StaticFileServer = None
+        if static_dir != "":
+            try:
+                initialized_static_server = static_files.static_file_server(file_cap, read_cap, static_dir)
+                static_file_server = initialized_static_server
+                _log.info("Enabled static file serving", {"directory": initialized_static_server.get_root_dir(), "prefix": static_prefix})
+            except Exception as e:
+                print("ERROR: Failed to initialize static file serving (dir: {static_dir}, prefix: {static_prefix}): {str(e)}", err=True)
+                env.exit(1)
+
+        _log.info("Configuration file watcher will bootstrap and reload config", {"config_path": config_path})
+
+        director = Director(env.cap, env.process, log_handler)
+        config_change_watcher = netclics_config.ConfigChangeWatcher(read_cap, config_path, director.set_config, log_handler)
+        webs = WebServ(listen_cap, http_port if http_port > 0 else None, director, log_handler, config_path, read_cap, static_file_server, static_prefix, https_port if https_port > 0 else None, tls_cert_pem, tls_key_pem)
+        if https_port is not None and tls_cert_pem is not None and tls_key_pem is not None:
+            _log.info("NETCLICS started", {"http_port": http_port, "https_port": https_port})
+        else:
+            _log.info("NETCLICS started", {"http_port": http_port})
+
+            # TODO: stats API, number of requests / client (anon)
