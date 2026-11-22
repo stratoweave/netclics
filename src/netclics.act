@@ -2771,15 +2771,17 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
         def _on_https_server_error(server, error):
             _log.error("HTTPS server error", {"error": error})
 
-        def _on_http_listen_error(listener, error):
-            _log.error("HTTP listen error", {"error": error})
+        def _on_http_listen(listener: std.http.Listener, error: ?str):
+            if error is not None:
+                _log.error("HTTP listen error", {"error": error})
 
-        def _on_https_listen_error(listener, error):
-            _log.error("HTTPS listen error", {"error": error})
+        def _on_https_listen(listener: std.http.TLSListener, error: ?str):
+            if error is not None:
+                _log.error("HTTPS listen error", {"error": error})
 
         http_server: ?std.http.Listener = None
         if http_port is not None:
-            http_server = std.http.Listener(listen_cap, "::", http_port, _on_http_accept, _on_http_listen_error)
+            http_server = std.http.Listener(listen_cap, "::", http_port, _on_http_accept, on_listen=_on_http_listen)
         else:
             _log.warning("HTTP endpoint disabled")
 
@@ -2792,7 +2794,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 tls_cert_pem,
                 tls_key_pem,
                 _on_https_accept,
-                _on_https_listen_error
+                on_listen=_on_https_listen
             )
         else:
             _log.warning("HTTPS endpoint disabled")
