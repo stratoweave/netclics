@@ -6,8 +6,8 @@ dependencies = {
     ),
     "netcli": (
         repo_url="https://github.com/stratoweave/netcli.git",
-        url="https://github.com/stratoweave/netcli/archive/7ae57a57923f0d828d2f1c243bd999d36ab9f814.zip",
-        hash="N-V-__8AAPcRAgBEbtO8e_yjrdgt2EiMcVEzsV6I3ea_ufj6"
+        url="https://github.com/stratoweave/netcli/archive/78752fba1996b0a0b74ec9505083eaf87877a1bf.zip",
+        hash="N-V-__8AAPcRAgDsWe_wi954-_7cWaWDdF1-Ik248cYWmu9q"
     ),
     "stratoweave": (
         repo_url="https://github.com/stratoweave/stratoweave",
