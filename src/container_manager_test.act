@@ -3,7 +3,7 @@ import testing
 
 
 actor _test_parse_docker_inspect(t: testing.EnvT):
-    proc def __startup__():
+    def __startup__():
         inspect_output = r"""[
       {
         "Id": "aabbccddeeff",
