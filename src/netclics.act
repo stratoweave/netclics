@@ -103,7 +103,7 @@ actor ContainerManager(process: EnvProcess, log_handler: logging.Handler):
         _log.info("Stopping container", {"container_name": container_name})
         # Since we use --rm, container will be removed automatically
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
 
@@ -1649,7 +1649,7 @@ actor DeviceInstance(auth: WorldCap, log_handler: logging.Handler, platform_name
         _log.info("Creating NETCONF client for schema initialization", {"host": ip_address, "port": netconf_port})
         create_netconf_client_with_retry(username, password, on_connect_success, on_connect_failure, on_error=on_connect_error)
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
 
@@ -2038,7 +2038,7 @@ actor DeviceManager(config: netclics_config.SystemConfig, container_mgr: contain
         """Get system configuration"""
         return config_state
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
 
@@ -2211,7 +2211,7 @@ actor Director(auth: WorldCap, process: EnvProcess, log_handler: logging.Handler
 
 # MCP Helper Functions
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
 
@@ -2314,14 +2314,14 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
 
     # Helper Functions for Response Handling
 
-    def _send_success_response(request_id: ?value, result: ?value, respond: proc(int, dict[str, str], bytes) -> None, context: str):
+    def _send_success_response(request_id: ?value, result: ?value, respond: action(int, dict[str, str], bytes) -> None, context: str):
         """Send a successful MCP response with logging"""
         response = MCPResponse(request_id, result, None)
         response_json = std.json.encode(response.to_dict())
         _log.debug("MCP {context} response", {"context": context, "response": response_json})
         respond(200, {"Content-Type": "application/json"}, response_json.encode())
 
-    def _send_error_response(request_id: ?value, error_code: int, error_msg: str, respond: proc(int, dict[str, str], bytes) -> None, context: str):
+    def _send_error_response(request_id: ?value, error_code: int, error_msg: str, respond: action(int, dict[str, str], bytes) -> None, context: str):
         """Send an error MCP response with logging"""
         error = MCPError(error_code, error_msg)
         response = MCPResponse(request_id, None, error)
@@ -2347,7 +2347,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             return val
         return None
 
-    def handle_initialize(request, respond: proc(int, dict[str, str], bytes) -> None):
+    def handle_initialize(request, respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP initialize request"""
         try:
             body_str = request.body.decode()
@@ -2384,7 +2384,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP initialize error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "initialize")
 
-    def handle_tools_list(request, respond: proc(int, dict[str, str], bytes) -> None):
+    def handle_tools_list(request, respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP tools/list request"""
         try:
             body_str = request.body.decode()
@@ -2431,7 +2431,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP tools/list error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "tools/list")
 
-    def handle_tools_call(request, respond: proc(int, dict[str, str], bytes) -> None):
+    def handle_tools_call(request, respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP tools/call request"""
         try:
             body_str = request.body.decode()
@@ -2460,7 +2460,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
             _log.error("MCP tools/call error", {"error": str(e)})
             _send_error_response(None, MCP_INTERNAL_ERROR, str(e), respond, "tools/call")
 
-    def _handle_convert_config(request_id: ?value, args: dict[str, ?value], respond: proc(int, dict[str, str], bytes) -> None):
+    def _handle_convert_config(request_id: ?value, args: dict[str, ?value], respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP convert_config tool call"""
 
         try:
@@ -2529,7 +2529,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "convert_config")
 
-    def _handle_list_platforms(request_id: ?value, respond: proc(int, dict[str, str], bytes) -> None):
+    def _handle_list_platforms(request_id: ?value, respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP list_platforms tool call"""
         _log.debug("MCP list_platforms called")
         try:
@@ -2558,7 +2558,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "list_platforms")
 
-    def _handle_list_instances(request_id: ?value, respond: proc(int, dict[str, str], bytes) -> None):
+    def _handle_list_instances(request_id: ?value, respond: action(int, dict[str, str], bytes) -> None):
         """Handle MCP list_instances tool call"""
         _log.debug("MCP list_instances called")
         try:
@@ -2607,7 +2607,7 @@ actor MCPServer(convert_fn: action(ConvertRequest, action(?(base_config: str, st
         except Exception as e:
             _send_error_response(request_id, MCP_INTERNAL_ERROR, str(e), respond, "list_instances")
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
 
@@ -2616,13 +2616,18 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
               config_path: str, read_cap: file.ReadFileCap, static_file_server: ?static_files.StaticFileServer = None,
               static_mount_prefix: str = "/static", https_port: ?int = None,
               tls_cert_pem: ?bytes = None, tls_key_pem: ?bytes = None):
-    proc def __startup__():
+    def __startup__():
         logh = logging.Handler("WebServ")
         logh.set_handler(log_handler)
         _log = logging.Logger(logh)
 
         # Create MCP server instance
         mcp = MCPServer(director.convert, director.get_platforms, director.get_instances, log_handler)
+
+        pure def bind_response(respond: proc(int, dict[str, str], bytes) -> None) -> action(int, dict[str, str], bytes) -> None:
+            def reply(status: int, headers: dict[str, str], body: bytes):
+                respond(status, headers, body)
+            return reply
 
         def _handle_convert(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):
             _log.info("Processing conversion request")
@@ -2690,11 +2695,11 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
                 _log.debug("MCP method", {"method": method})
 
                 if method == "initialize":
-                    mcp.handle_initialize(ctx.request, respond)
+                    mcp.handle_initialize(ctx.request, bind_response(respond))
                 elif method == "tools/list":
-                    mcp.handle_tools_list(ctx.request, respond)
+                    mcp.handle_tools_list(ctx.request, bind_response(respond))
                 elif method == "tools/call":
-                    mcp.handle_tools_call(ctx.request, respond)
+                    mcp.handle_tools_call(ctx.request, bind_response(respond))
                 else:
                     _log.warning("Unknown MCP method", {"method": method})
                     error = MCPError(MCP_METHOD_NOT_FOUND, "Unknown method: " + str(method))
@@ -2751,7 +2756,9 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
             swstatic.install(router, webui_assets.ASSETS)
 
         def _serve_with_router(request, respond):
-            router.serve(request, respond)
+            def send_response(status: int, headers: dict[str, str], body: bytes):
+                respond(status, headers, body)
+            router.serve(request, send_response)
 
         def _on_http_server_request(server, request, respond):
             _serve_with_router(request, respond)
@@ -2802,7 +2809,7 @@ actor WebServ(listen_cap: net.TCPListenCap, http_port: ?int, director, log_handl
 
 
 actor main(env: Env):
-    proc def __startup__():
+    def __startup__():
         listen_cap = net.TCPListenCap(net.TCPCap(net.NetCap(env.cap)))
 
         def _parse_args():

@@ -81,7 +81,7 @@ def _test_content_type():
 
 
 actor _test_serves_assets_with_cache_headers(t: testing.EnvT):
-    proc def __startup__():
+    def __startup__():
         r = http_router.Router()
 
         def after_index_alias():
@@ -107,7 +107,7 @@ actor _test_serves_assets_with_cache_headers(t: testing.EnvT):
 
 
 actor _test_spa_fallback_heuristic(t: testing.EnvT):
-    proc def __startup__():
+    def __startup__():
         r = http_router.Router()
 
         def after_zero_quality():
@@ -155,7 +155,7 @@ def _test_rejects_relative_paths():
 
 
 actor _test_no_index_no_fallback(t: testing.EnvT):
-    proc def __startup__():
+    def __startup__():
         r = http_router.Router()
 
         def after_missing():
@@ -180,7 +180,7 @@ def _test_embedded_assets():
 
 
 actor _test_api_and_static_routes_take_precedence(t: testing.EnvT):
-    proc def __startup__():
+    def __startup__():
         r = http_router.Router()
 
         def api(ctx: http_router.Context, respond: proc(int, dict[str, str], bytes) -> None):

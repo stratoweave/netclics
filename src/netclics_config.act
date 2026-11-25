@@ -254,7 +254,7 @@ actor ConfigChangeWatcher(read_cap: file.ReadFileCap,
 
         after poll_interval_seconds: _poll()
 
-    proc def __startup__():
+    def __startup__():
         logh.set_handler(log_handler)
 
         _log.info("Starting config change watcher", {"path": config_path, "poll_interval_seconds": poll_interval_seconds})
